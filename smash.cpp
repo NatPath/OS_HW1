@@ -4,6 +4,7 @@
 #include <signal.h>
 #include "Commands.h"
 #include "signals.h"
+#define _GLIBCXX_USE_CXX11_ABI 0
 
 int main(int argc, char* argv[]) {
     if(signal(SIGTSTP , ctrlZHandler)==SIG_ERR) {

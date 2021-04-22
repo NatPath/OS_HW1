@@ -1,0 +1,5 @@
+make smash --dry-run --keep-going --print-directory
+make: Entering directory `/home/ben.halperin/OS_HW1'
+make: `smash' is up to date.
+make: Leaving directory `/home/ben.halperin/OS_HW1'
+ 

@@ -54,15 +54,35 @@ class RedirectionCommand : public Command {
   //void cleanup() override;
 };
 
-class ChangePromptCommand : public BuiltInCommand {
-// TODO: Add your data members public:
-  std::string new_prompt;
+class ChangePromptCommand : public BuiltInCommand {  
   public:
   ChangePromptCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
   virtual ~ChangePromptCommand() {}
   void execute() override;
 };
 
+class ShowPIDCommand : public BuiltInCommand {  
+  public:
+  ShowPIDCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
+  virtual ~ShowPIDCommand() {}
+  void execute() override;
+};
+
+class PwdCommand : public BuiltInCommand {  
+  public:
+  PwdCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
+  virtual ~PwdCommand() {}
+  void execute() override;
+};
+
+class CwdCommand : public BuiltInCommand {  
+  public:
+  CwdCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
+  virtual ~CwdCommand() {}
+  void execute() override;
+};
+
+/*
 class ChangeDirCommand : public BuiltInCommand {
 // TODO: Add your data members public:
   ChangeDirCommand(const char* cmd_line, char** plastPwd);
@@ -76,13 +96,8 @@ class GetCurrDirCommand : public BuiltInCommand {
   virtual ~GetCurrDirCommand() {}
   void execute() override;
 };
+*/
 
-class ShowPidCommand : public BuiltInCommand {
- public:
-  ShowPidCommand(const char* cmd_line);
-  virtual ~ShowPidCommand() {}
-  void execute() override;
-};
 
 class JobsList;
 class QuitCommand : public BuiltInCommand {
@@ -158,7 +173,8 @@ class CatCommand : public BuiltInCommand {
 class SmallShell {
  private:
   // TODO: Add your data members
-  std::string _prompt_name;
+  std::string _prompt_name ;
+  std::string _last_working_dir;
   SmallShell();
  public:
   Command *CreateCommand(const char* cmd_line);
@@ -175,6 +191,9 @@ class SmallShell {
   // TODO: add extra methods as needed
   std::string getPromptName();
   void setPromptName(std::string new_name);
+  std::string getLastWorkingDir();
+  void setLastWorkingDir(std::string new_dir);
+  
 };
 
 #endif //SMASH_COMMAND_H_
