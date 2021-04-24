@@ -1,5 +1,8 @@
-make smash --dry-run --keep-going --print-directory
+make smash --dry-run --always-make --keep-going --print-directory
 make: Entering directory `/home/ben.halperin/OS_HW1'
-make: `smash' is up to date.
+g++ --std=c++11 -Wall -g -c Commands.cpp
+g++ --std=c++11 -Wall -g -c signals.cpp
+g++ --std=c++11 -Wall -g -c smash.cpp
+g++ --std=c++11 -Wall -g Commands.o signals.o smash.o -o smash
 make: Leaving directory `/home/ben.halperin/OS_HW1'
  

@@ -2,6 +2,7 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
+#include <map>
 #include <string.h>
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -114,8 +115,14 @@ class JobsList {
  public:
   class JobEntry {
    // TODO: Add your data members
+   int jobId;
+
+   public:
+   int getId();
+   void setId(int id);
   };
  // TODO: Add your data members
+ std::map<int,JobEntry> jobs;
  public:
   JobsList();
   ~JobsList();

@@ -4,6 +4,7 @@
 #include <vector>
 #include <sstream>
 #include <sys/wait.h>
+#include <algorithm>
 #include <iomanip>
 #include "Commands.h"
 
@@ -203,6 +204,26 @@ void SmallShell::setLastWorkingDir(string new_dir)
 {
   _last_working_dir = new_dir;
 }
+//jobsList
+JobsList::JobEntry* JobsList::getJobById(int jobId){
+  return &jobs.find(jobId)->second;
+}
+
+JobsList::JobEntry * JobsList::getLastJob(int* lastJobId){
+  auto max_it = std::max_element(std::begin(jobs),std::end(jobs));
+  *lastJobId = max_it->first;
+  return &max_it->second;
+}
+
+//jobEntry
+int JobsList::JobEntry::getId(){
+  return jobId;
+}
+
+void JobsList::JobEntry::setId(int id){
+  jobId = id;
+}
+
 
 //General Command Zone
 Command::Command(const char *cmd_line)
