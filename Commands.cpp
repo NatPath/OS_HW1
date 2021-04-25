@@ -104,6 +104,8 @@ SmallShell::SmallShell()
 {
   // TODO: add your implementation
   _prompt_name = "smash";
+  _jobsList = std::map<JobEntry,int>();
+
 }
 
 SmallShell::~SmallShell()
@@ -138,9 +140,14 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
   int num_args = _parseCommandLine(cmd_line,args);
   num_args--;
   */
+//TODO:
+/*
+1) builtin commands should ignore &
 
+*/
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+
 
   if (firstWord.compare("chprompt") == 0)
   {
@@ -156,8 +163,14 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
   }
   if (firstWord.compare("cd") == 0)
   {
-    return new CwdCommand(cmd_line);
+    return new CdCommand(cmd_line);
   }
+  if (firstWord.compare("jobs") == 0)
+  {
+    return new JobsCommand(cmd_line);
+  }
+
+
 
   /*
   if (string(args[0]).compare("chprompt")==0){
@@ -206,22 +219,37 @@ void SmallShell::setLastWorkingDir(string new_dir)
 }
 //jobsList
 JobsList::JobEntry* JobsList::getJobById(int jobId){
-  return &jobs.find(jobId)->second;
+  return &_jobs.find(jobId)->second;
 }
 
 JobsList::JobEntry * JobsList::getLastJob(int* lastJobId){
-  auto max_it = std::max_element(std::begin(jobs),std::end(jobs));
+  auto max_it = _jobs.rbegin();
   *lastJobId = max_it->first;
   return &max_it->second;
 }
 
 //jobEntry
+JobsList::JobEntry(int id){
+  _timeMade = time();
+  _jobId = id;
+} 
+
 int JobsList::JobEntry::getId(){
-  return jobId;
+  return _jobId;
 }
 
 void JobsList::JobEntry::setId(int id){
-  jobId = id;
+  _jobId = id;
+}
+pid_t JobsList::JobEntry::get_pid(){
+  return _pid;
+}
+void JobsList::JobEntry::printJob(){
+  std::string stopped_string="";
+  if (_stopped){
+    stopped_string="(stopped)";
+  }
+  std::cout << "[" << _jobId << "] " << _command << " : " << _pid << difftime(time(),_timeMade)<< " secs"<< stopped_string << std::endl;
 }
 
 
@@ -236,14 +264,19 @@ Command::Command(const char *cmd_line)
 void ChangePromptCommand::execute()
 {
   SmallShell &smash = SmallShell::getInstance();
-  smash.setPromptName(_args[1]);
+  if (_args_num==1){
+    smash.setPromptName("smash");
+  }
+  else{
+    smash.setPromptName(_args[1]);
+  }
 }
 
 // showpid
 void ShowPIDCommand::execute()
 {
   std::cout << "smash pid is ";
-  std::cout << getpid();
+  std::cout << getpid() << std::endl;
 }
 
 //pwd
@@ -252,13 +285,13 @@ void PwdCommand::execute()
 
   char *buff = (char *)malloc(pathconf(".", _PC_PATH_MAX));
   getcwd(buff, pathconf(".", _PC_PATH_MAX));
-  std::cout << buff;
+  std::cout << buff << std::endl;
   free(buff);
 }
 
-//cwd
+//cd
 
-void CwdCommand::execute()
+void CdCommand::execute()
 {
   if (_args_num > 2)
   {
@@ -293,4 +326,65 @@ void CwdCommand::execute()
 
   SmallShell::getInstance().setLastWorkingDir(buff);
   free(buff);
+}
+
+// jobs
+void JobsCommand::execute(){
+  for (auto it=_jobs.begin(); it!=_jobs.end();it++){
+    it->printJob();
+  }
+}
+
+//kill 
+void KillCommand::execute(){
+  if(_args_num!=3){
+    std::cerr<<"smash error: kill: invalid arguments";
+    return;
+  }
+  JobsList::JobEntry* target = JobsList::getJobById(_args[2]);
+  if(!target){
+    std::cerr<<"smash error: kill: job-id "<< _args[2]<< " does not exist";
+  }
+  std::string sigNumStr = _args[1];
+
+  if(sigNumStr[0]!="-"){
+    std::cerr<<"smash error: kill: invalid arguments";
+    return;
+  }
+
+  
+  try
+  {
+    int signum = std::stoi(signum.substr(1, signum.length - 1));
+    if (kill(target->get_pid(), signum) != 0)
+    {
+      perror("smash error: kill failed");
+    }
+
+    std::cout<<"signal number "<<signum<<" was sent to pid "<<target->get_pid();
+  }
+  catch(std::invalid_argument){
+    std::cerr<<"smash error: kill: invalid arguments";
+    return;
+  }
+}
+
+// fg
+
+void ForegroundCommand::execute(){
+  JobsList jobsList = SmallShell:getInstance().getJobsList();
+  auto found_job = jobsList.find(_args[1]);
+  if (found_job != jobsList.end()){
+    std::cerr << "smash error: fg: job-id " << found_job->getId() <<" does not exist" << std::endl;
+  }
+  //error handeling
+  if (_args_num!=1){
+    if (_args_num==0 && jobsList.empty() ){
+      std::cerr << "smash error: fg: jobs list is empty" << std::endl;
+      return;
+    }
+    std::cerr << "smash error: fg: invalid arguments" << std::endl;
+  }
+
+
 }

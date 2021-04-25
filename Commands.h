@@ -76,10 +76,17 @@ class PwdCommand : public BuiltInCommand {
   void execute() override;
 };
 
-class CwdCommand : public BuiltInCommand {  
+class CdCommand : public BuiltInCommand {  
   public:
-  CwdCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
-  virtual ~CwdCommand() {}
+  CdCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
+  virtual ~CdCommand() {}
+  void execute() override;
+};
+
+class JobsCommand : public BuiltInCommand {  
+  public:
+  JobsCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
+  virtual ~JobsCommand() {}
   void execute() override;
 };
 
@@ -115,14 +122,23 @@ class JobsList {
  public:
   class JobEntry {
    // TODO: Add your data members
-   int jobId;
+   int _jobId;
+   pid_t _pid;
+   time_t _timeMade;
+   std::string _command;
+   bool _stopped;
 
    public:
+   JobEntry(int id);
    int getId();
    void setId(int id);
+   pid_t get_pid();
+   void printJob();
+   void stopJob();
+   void proceedJob();
   };
  // TODO: Add your data members
- std::map<int,JobEntry> jobs;
+ std::map<int,JobEntry> _jobs;
  public:
   JobsList();
   ~JobsList();
@@ -145,10 +161,10 @@ class JobsCommand : public BuiltInCommand {
   void execute() override;
 };
 
-class KillCommand : public BuiltInCommand {
- // TODO: Add your data members
- public:
-  KillCommand(const char* cmd_line, JobsList* jobs);
+
+class KillCommand : public BuiltInCommand {  
+  public:
+  KillCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
   virtual ~KillCommand() {}
   void execute() override;
 };
@@ -182,6 +198,7 @@ class SmallShell {
   // TODO: Add your data members
   std::string _prompt_name ;
   std::string _last_working_dir;
+  JobsList _jobsList;
   SmallShell();
  public:
   Command *CreateCommand(const char* cmd_line);
