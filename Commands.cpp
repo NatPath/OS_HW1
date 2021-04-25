@@ -249,7 +249,11 @@ void JobsList::JobEntry::printJob(){
   if (_stopped){
     stopped_string="(stopped)";
   }
-  std::cout << "[" << _jobId << "] " << _command << " : " << _pid << difftime(time(),_timeMade)<< " secs"<< stopped_string << std::endl;
+  std::cout << "[" << _jobId << "] " << *this << " " << difftime(time(),_timeMade)<< " secs "<< stopped_string << std::endl;
+}
+std::ostream& operator<<(std::ostream& os,const JobEntry& job){
+  os <<  command << " : " << job.get_pid();
+  return os;
 }
 
 
@@ -373,18 +377,33 @@ void KillCommand::execute(){
 
 void ForegroundCommand::execute(){
   JobsList jobsList = SmallShell:getInstance().getJobsList();
-  auto found_job = jobsList.find(_args[1]);
-  if (found_job != jobsList.end()){
-    std::cerr << "smash error: fg: job-id " << found_job->getId() <<" does not exist" << std::endl;
-  }
-  //error handeling
-  if (_args_num!=1){
-    if (_args_num==0 && jobsList.empty() ){
+  if (_args_num==0){
+    if (jobsList.empty()){
       std::cerr << "smash error: fg: jobs list is empty" << std::endl;
-      return;
     }
+    else{
+      auto last=jobsList.rbegin();
+      kill(last->get_pid(),SIGCONT);
+      waitpid(last->get_pid());
+      std::cout << *last << std::endl;
+      jobsList.removeJobById(last->getId());
+
+    }
+    return;
+  }
+  if (_arg_num==1){
+    auto found_job = jobsList.find(_args[1]);
+    if (found_job == jobsList.end()){
+      std::cerr << "smash error: fg: job-id " << _args[1] <<" does not exist" << std::endl;
+    }
+    else{
+      kill(found_job->get_pid(),SIGCONT);
+      waitpid(found_job->get_pid());
+      std::cout << *last << std::endl;
+      jobsList.removeJobById(found_job->getId());
+    }
+  }
+  else{
     std::cerr << "smash error: fg: invalid arguments" << std::endl;
   }
-
-
 }

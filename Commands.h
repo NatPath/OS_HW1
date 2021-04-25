@@ -136,6 +136,7 @@ class JobsList {
    void printJob();
    void stopJob();
    void proceedJob();
+   friend std::ostream& operator<<(std::ostream& os,const JobEntry& job);
   };
  // TODO: Add your data members
  std::map<int,JobEntry> _jobs;
