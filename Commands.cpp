@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iomanip>
 #include "Commands.h"
+#define _GLIBCXX_USE_CXX11_ABI 0
 
 using namespace std;
 
@@ -20,7 +21,7 @@ using namespace std;
 #define FUNC_ENTRY()
 #define FUNC_EXIT()
 #define WHITESPACE " "
-# define MAX_PATH_LENGTH 255
+#define MAX_PATH_LENGTH 255
 #endif
 
 string _ltrim(const std::string &s)
@@ -104,8 +105,7 @@ SmallShell::SmallShell()
 {
   // TODO: add your implementation
   _prompt_name = "smash";
-  _jobsList = std::map<JobEntry,int>();
-
+  _jobsList = JobsList();
 }
 
 SmallShell::~SmallShell()
@@ -140,14 +140,13 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
   int num_args = _parseCommandLine(cmd_line,args);
   num_args--;
   */
-//TODO:
-/*
+  //TODO:
+  /*
 1) builtin commands should ignore &
 
 */
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-
 
   if (firstWord.compare("chprompt") == 0)
   {
@@ -169,8 +168,6 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
   {
     return new JobsCommand(cmd_line);
   }
-
-
 
   /*
   if (string(args[0]).compare("chprompt")==0){
@@ -213,49 +210,71 @@ string SmallShell::getLastWorkingDir()
   return _last_working_dir;
 }
 
+JobsList &SmallShell::getJobsList()
+{
+  return _jobsList;
+}
+
 void SmallShell::setLastWorkingDir(string new_dir)
 {
   _last_working_dir = new_dir;
 }
 //jobsList
-JobsList::JobEntry* JobsList::getJobById(int jobId){
+std::map<int, JobsList::JobEntry> &JobsList::getJobs()
+{
+  return _jobs;
+}
+
+void JobsList::removeJobById(int id){
+  _jobs.erase(id);
+}
+//jobEntry
+JobsList::JobEntry *JobsList::getJobById(int jobId)
+{
   return &_jobs.find(jobId)->second;
 }
 
-JobsList::JobEntry * JobsList::getLastJob(int* lastJobId){
+JobsList::JobEntry *JobsList::getLastJob(int *lastJobId)
+{
   auto max_it = _jobs.rbegin();
   *lastJobId = max_it->first;
   return &max_it->second;
 }
 
-//jobEntry
-JobsList::JobEntry(int id){
-  _timeMade = time();
+JobsList::JobEntry::JobEntry(int id, std::string command)
+{
+  _timeMade = time(nullptr);
   _jobId = id;
-} 
+  _command = command;
+}
 
-int JobsList::JobEntry::getId(){
+int JobsList::JobEntry::getId()
+{
   return _jobId;
 }
 
-void JobsList::JobEntry::setId(int id){
+void JobsList::JobEntry::setId(int id)
+{
   _jobId = id;
 }
-pid_t JobsList::JobEntry::get_pid(){
+pid_t JobsList::JobEntry::get_pid() const
+{
   return _pid;
 }
-void JobsList::JobEntry::printJob(){
-  std::string stopped_string="";
-  if (_stopped){
-    stopped_string="(stopped)";
+void JobsList::JobEntry::printJob()
+{
+  std::string stopped_string = "";
+  if (_stopped)
+  {
+    stopped_string = "(stopped)";
   }
-  std::cout << "[" << _jobId << "] " << *this << " " << difftime(time(),_timeMade)<< " secs "<< stopped_string << std::endl;
+  std::cout << "[" << _jobId << "] " << *this << " " << difftime(time(nullptr), _timeMade) << " secs " << stopped_string << std::endl;
 }
-std::ostream& operator<<(std::ostream& os,const JobEntry& job){
-  os <<  command << " : " << job.get_pid();
+std::ostream &operator<<(std::ostream &os, const JobsList::JobEntry &job)
+{
+  os << job._command << " : " << job.get_pid();
   return os;
 }
-
 
 //General Command Zone
 Command::Command(const char *cmd_line)
@@ -268,10 +287,12 @@ Command::Command(const char *cmd_line)
 void ChangePromptCommand::execute()
 {
   SmallShell &smash = SmallShell::getInstance();
-  if (_args_num==1){
+  if (_args_num == 1)
+  {
     smash.setPromptName("smash");
   }
-  else{
+  else
+  {
     smash.setPromptName(_args[1]);
   }
 }
@@ -319,9 +340,9 @@ void CdCommand::execute()
   }
   char *buff = (char *)malloc(pathconf(".", _PC_PATH_MAX));
   getcwd(buff, pathconf(".", _PC_PATH_MAX));
-  
-  
-  if(chdir(new_path.c_str()) == -1){
+
+  if (chdir(new_path.c_str()) == -1)
+  {
     // error handling
     perror("smash error: chdir failed");
     free(buff);
@@ -333,77 +354,93 @@ void CdCommand::execute()
 }
 
 // jobs
-void JobsCommand::execute(){
-  for (auto it=_jobs.begin(); it!=_jobs.end();it++){
-    it->printJob();
+void JobsCommand::execute()
+{
+  std::map<int, JobsList::JobEntry> _jobs = SmallShell::getInstance().getJobsList().getJobs();
+  for (auto it = _jobs.begin(); it != _jobs.end(); it++)
+  {
+    it->second.printJob();
   }
 }
 
-//kill 
-void KillCommand::execute(){
-  if(_args_num!=3){
-    std::cerr<<"smash error: kill: invalid arguments";
+//kill
+void KillCommand::execute()
+{
+  if (_args_num != 3)
+  {
+    std::cerr << "smash error: kill: invalid arguments";
     return;
   }
-  JobsList::JobEntry* target = JobsList::getJobById(_args[2]);
-  if(!target){
-    std::cerr<<"smash error: kill: job-id "<< _args[2]<< " does not exist";
-  }
-  std::string sigNumStr = _args[1];
-
-  if(sigNumStr[0]!="-"){
-    std::cerr<<"smash error: kill: invalid arguments";
-    return;
-  }
-
-  
   try
   {
-    int signum = std::stoi(signum.substr(1, signum.length - 1));
+    int jobId = std::stoi(_args[2]);
+    JobsList::JobEntry *target = SmallShell::getInstance().getJobsList().getJobById(jobId);
+    if (!target)
+    {
+      std::cerr << "smash error: kill: job-id " << _args[2] << " does not exist";
+    }
+    int signum = std::stoi(_args[1]);
+    if (signum>0)
+    {
+      std::cerr << "smash error: kill: invalid arguments";
+      return;
+    }
+    signum*=-1;
+
+    
     if (kill(target->get_pid(), signum) != 0)
     {
       perror("smash error: kill failed");
     }
 
-    std::cout<<"signal number "<<signum<<" was sent to pid "<<target->get_pid();
+    std::cout << "signal number " << signum << " was sent to pid " << target->get_pid();
   }
-  catch(std::invalid_argument){
-    std::cerr<<"smash error: kill: invalid arguments";
+  catch (std::invalid_argument)
+  {
+    std::cerr << "smash error: kill: invalid arguments";
     return;
   }
 }
 
 // fg
 
-void ForegroundCommand::execute(){
-  JobsList jobsList = SmallShell:getInstance().getJobsList();
-  if (_args_num==0){
-    if (jobsList.empty()){
+void ForegroundCommand::execute()
+{
+  JobsList jobsList =  SmallShell::getInstance().getJobsList();
+  std::map<int,JobsList::JobEntry> jobs =jobsList.getJobs();
+  if (_args_num == 0)
+  {
+    if (jobs.empty())
+    {
       std::cerr << "smash error: fg: jobs list is empty" << std::endl;
     }
-    else{
-      auto last=jobsList.rbegin();
-      kill(last->get_pid(),SIGCONT);
-      waitpid(last->get_pid());
-      std::cout << *last << std::endl;
-      jobsList.removeJobById(last->getId());
-
+    else
+    {
+      auto last = jobs.rbegin();
+      std::cout << last->second << std::endl;
+      kill(last->second.get_pid(), SIGCONT);
+      waitpid(last->second.get_pid(),nullptr,0);
+      jobsList.removeJobById(last->second.getId());
     }
     return;
   }
-  if (_arg_num==1){
-    auto found_job = jobsList.find(_args[1]);
-    if (found_job == jobsList.end()){
-      std::cerr << "smash error: fg: job-id " << _args[1] <<" does not exist" << std::endl;
+  if (_args_num == 1)
+  {
+    auto found_job = jobs.find(stoi(_args[1]));
+    if (found_job == jobs.end())
+    {
+      std::cerr << "smash error: fg: job-id " << _args[1] << " does not exist" << std::endl;
     }
-    else{
-      kill(found_job->get_pid(),SIGCONT);
-      waitpid(found_job->get_pid());
-      std::cout << *last << std::endl;
-      jobsList.removeJobById(found_job->getId());
+    else
+    {
+      std::cout << found_job->second << std::endl;
+      kill(found_job->second.get_pid(), SIGCONT);
+      waitpid(found_job->second.get_pid(),nullptr,0);
+      jobsList.removeJobById(found_job->second.getId());
     }
   }
-  else{
+  else
+  {
     std::cerr << "smash error: fg: invalid arguments" << std::endl;
   }
 }

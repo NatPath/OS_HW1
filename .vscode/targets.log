@@ -5,9 +5,8 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
- 
 
-# Make data base, printed on Thu Apr 22 18:12:36 2021
+# Make data base, printed on Mon Apr 26 19:18:14 2021
 
 # Variables
 
@@ -56,7 +55,7 @@ LESSOPEN = ||/usr/bin/lesspipe.sh %s
 # environment
 VSCODE_CWD = /home/ben.halperin
 # environment
-SSH_CONNECTION = 79.179.2.222 51484 132.68.32.76 22
+SSH_CONNECTION = 79.179.2.222 57887 132.68.32.76 22
 # environment
 PATH = /home/ben.halperin/.vscode-server/bin/3c4e3df9e89829dce27b7b5c24508306b151f30d/bin:/usr/bin/:/home/ben.halperin/.vscode-server/bin/3c4e3df9e89829dce27b7b5c24508306b151f30d/bin:/usr/lib64/qt-3.3/bin:/usr/bin/:/usr/local/bin:/usr/bin:/usr/local/pgsql/bin:/usr/local/sbin:/usr/sbin:/usr/local/pgsql/bin:/home/ben.halperin/bin
 # makefile (from `Makefile', line 8)
@@ -68,9 +67,6 @@ XDG_RUNTIME_DIR = /run/user/17044
 # environment
 VSCODE_LOG_STACK = false
 # default
- 
-make: *** No rule to make target `all'.  Stop.
- 
 .FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell archives jobserver check-symlink
 # makefile (from `Makefile', line 9)
 TESTS_OUTPUTS := test_output1.txt
@@ -81,7 +77,7 @@ VSCODE_PIPE_LOGGING = true
 # environment
 PWD = /home/ben.halperin/OS_HW1
 # environment
-VSCODE_IPC_HOOK_CLI = /run/user/17044/vscode-ipc-b93c36ec-f7e7-420a-b6ee-d710d775938e.sock
+VSCODE_IPC_HOOK_CLI = /run/user/17044/vscode-ipc-36ce6e70-b2aa-421e-894e-970460b8e534.sock
 # automatic
 *D = $(patsubst %/,%,$(dir $*))
 # environment
@@ -117,7 +113,7 @@ SRCS := Commands.cpp signals.cpp smash.cpp
 # environment
 SHLVL = 5
 # environment
-XDG_SESSION_ID = 6069
+XDG_SESSION_ID = 22983
 # environment
 USER = ben.halperin
 # environment
@@ -135,7 +131,7 @@ MAKEFLAGS = Rrqp
 # environment
 MFLAGS = -Rrqp
 # environment
-SSH_CLIENT = 79.179.2.222 51484 22
+SSH_CLIENT = 79.179.2.222 57887 22
 # environment
 MAIL = /var/spool/mail/ben.halperin
 # automatic
@@ -284,6 +280,7 @@ signals.o: signals.cpp
 #  File has not been updated.
 #  recipe to execute (from `Makefile', line 24):
 	$(COMPILER) $(COMPILER_FLAGS) -c $^
+ 
 
 Commands.o: Commands.cpp
 #  Implicit rule search has not been done.
@@ -333,6 +330,8 @@ test_output1.txt: test_input1.txt test_expected_output1.txt smash
 
 # strcache hash-table stats:
 # Load=34/8192=0%, Rehash=0, Collisions=1/69=1%
-# Finished Make data base on Thu Apr 22 18:12:36 2021
+# Finished Make data base on Mon Apr 26 19:18:14 2021
 
+ 
+make: *** No rule to make target `all'.  Stop.
  

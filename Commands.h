@@ -6,7 +6,7 @@
 #include <string.h>
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
-
+#define _GLIBCXX_USE_CXX11_ABI 0
 
 class Command {
 // TODO: Add your data members
@@ -129,10 +129,10 @@ class JobsList {
    bool _stopped;
 
    public:
-   JobEntry(int id);
+   JobEntry(int id,std::string command);
    int getId();
    void setId(int id);
-   pid_t get_pid();
+   pid_t get_pid() const;
    void printJob();
    void stopJob();
    void proceedJob();
@@ -141,8 +141,8 @@ class JobsList {
  // TODO: Add your data members
  std::map<int,JobEntry> _jobs;
  public:
-  JobsList();
-  ~JobsList();
+  JobsList() = default;
+  ~JobsList(){}
   void addJob(Command* cmd, bool isStopped = false);
   void printJobsList();
   void killAllJobs();
@@ -151,16 +151,11 @@ class JobsList {
   void removeJobById(int jobId);
   JobEntry * getLastJob(int* lastJobId);
   JobEntry *getLastStoppedJob(int *jobId);
+  std::map<int,JobEntry>& getJobs();
   // TODO: Add extra methods or modify exisitng ones as needed
 };
 
-class JobsCommand : public BuiltInCommand {
- // TODO: Add your data members
- public:
-  JobsCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~JobsCommand() {}
-  void execute() override;
-};
+
 
 
 class KillCommand : public BuiltInCommand {  
@@ -218,6 +213,7 @@ class SmallShell {
   void setPromptName(std::string new_name);
   std::string getLastWorkingDir();
   void setLastWorkingDir(std::string new_dir);
+  JobsList& getJobsList();
   
 };
 
