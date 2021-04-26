@@ -225,13 +225,19 @@ std::map<int, JobsList::JobEntry> &JobsList::getJobs()
   return _jobs;
 }
 
-void JobsList::removeJobById(int id){
+JobsList::JobEntry * JobsList::getLastStoppedJob(int *jobId){
+
+}
+
+void JobsList::removeJobById(int id)
+{
   _jobs.erase(id);
 }
 //jobEntry
 JobsList::JobEntry *JobsList::getJobById(int jobId)
 {
-  return &_jobs.find(jobId)->second;
+  auto found = &_jobs.find(jobId);
+  return (*found ==_jobs.end())? nullptr:&_jobs.find(jobId)->second;
 }
 
 JobsList::JobEntry *JobsList::getLastJob(int *lastJobId)
@@ -366,13 +372,13 @@ void JobsCommand::execute()
 //kill
 void KillCommand::execute()
 {
-  if (_args_num != 3)
-  {
-    std::cerr << "smash error: kill: invalid arguments";
-    return;
-  }
   try
   {
+    if (_args_num != 3)
+    {
+      throw std::invalid_argument("");
+    }
+
     int jobId = std::stoi(_args[2]);
     JobsList::JobEntry *target = SmallShell::getInstance().getJobsList().getJobById(jobId);
     if (!target)
@@ -380,14 +386,12 @@ void KillCommand::execute()
       std::cerr << "smash error: kill: job-id " << _args[2] << " does not exist";
     }
     int signum = std::stoi(_args[1]);
-    if (signum>0)
+    if (signum > 0)
     {
-      std::cerr << "smash error: kill: invalid arguments";
-      return;
+      throw std::invalid_argument("");
     }
-    signum*=-1;
+    signum *= -1;
 
-    
     if (kill(target->get_pid(), signum) != 0)
     {
       perror("smash error: kill failed");
@@ -395,7 +399,7 @@ void KillCommand::execute()
 
     std::cout << "signal number " << signum << " was sent to pid " << target->get_pid();
   }
-  catch (std::invalid_argument)
+  catch (const std::invalid_argument &)
   {
     std::cerr << "smash error: kill: invalid arguments";
     return;
@@ -406,8 +410,8 @@ void KillCommand::execute()
 
 void ForegroundCommand::execute()
 {
-  JobsList jobsList =  SmallShell::getInstance().getJobsList();
-  std::map<int,JobsList::JobEntry> jobs =jobsList.getJobs();
+  JobsList jobsList = SmallShell::getInstance().getJobsList();
+  std::map<int, JobsList::JobEntry> jobs = jobsList.getJobs();
   if (_args_num == 0)
   {
     if (jobs.empty())
@@ -419,7 +423,7 @@ void ForegroundCommand::execute()
       auto last = jobs.rbegin();
       std::cout << last->second << std::endl;
       kill(last->second.get_pid(), SIGCONT);
-      waitpid(last->second.get_pid(),nullptr,0);
+      waitpid(last->second.get_pid(), nullptr, 0);
       jobsList.removeJobById(last->second.getId());
     }
     return;
@@ -435,12 +439,51 @@ void ForegroundCommand::execute()
     {
       std::cout << found_job->second << std::endl;
       kill(found_job->second.get_pid(), SIGCONT);
-      waitpid(found_job->second.get_pid(),nullptr,0);
+      waitpid(found_job->second.get_pid(), nullptr, 0);
       jobsList.removeJobById(found_job->second.getId());
     }
   }
   else
   {
     std::cerr << "smash error: fg: invalid arguments" << std::endl;
+  }
+}
+
+//bg
+void BackgroundCommand::execute()
+{
+  try
+  {
+    if (_args_num != 2 || _args_num !=1 )
+    {
+      throw std::invalid_argument("");
+    }
+
+    JobsList JobsList = SmallShell::getInstance().getJobsList();
+    JobsList::JobEntry* target; 
+
+    if(_args_num==2){    
+      int jobId =std::stoi(_args[1]);
+      
+      target = JobsList.getJobById(jobId);
+      if(!target){
+        std::cerr<<"smash error: bg: job-id "<<jobId<<" does not exist";
+        return;
+      }
+      //CHECK IF JOB IS NOT STOPPED
+    }
+    else{
+      target = JobsList.getLastStoppedJob(nullptr); // getLastStoppedJob has not yet been implemented!
+      //CHECK IF THERE IS NO STOPPED JOB
+    }
+
+    std::cout<< target;
+    kill(target->get_pid(),SIGCONT);
+    JobsList.removeJobById(target->getId());
+  }
+  catch (const std::invalid_argument &)
+  {
+    std::cerr << "smash error: bg: invalid arguments";
+    return;
   }
 }
