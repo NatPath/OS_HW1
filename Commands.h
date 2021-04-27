@@ -6,7 +6,7 @@
 #include <string.h>
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
-#define _GLIBCXX_USE_CXX11_ABI 0
+
 
 class Command {
 // TODO: Add your data members
@@ -31,7 +31,7 @@ class BuiltInCommand : public Command {
 
 class ExternalCommand : public Command {
  public:
-  ExternalCommand(const char* cmd_line);
+  ExternalCommand(char* cmd_line);
   virtual ~ExternalCommand() {}
   void execute() override;
 };
@@ -107,17 +107,18 @@ class GetCurrDirCommand : public BuiltInCommand {
 */
 
 
-class JobsList;
+
 class QuitCommand : public BuiltInCommand {
 // TODO: Add your data members public:
-  QuitCommand(const char* cmd_line, JobsList* jobs);
+  public:
+  QuitCommand(const char* cmd_line) : BuiltInCommand(cmd_line){};
   virtual ~QuitCommand() {}
   void execute() override;
 };
 
 
 
-
+class JobsList;
 class JobsList {
  public:
   class JobEntry {
@@ -135,11 +136,15 @@ class JobsList {
    pid_t get_pid() const;
    void printJob();
    void stopJob();
+   void die();
    void proceedJob();
    friend std::ostream& operator<<(std::ostream& os,const JobEntry& job);
   };
  // TODO: Add your data members
+ private:
+ JobEntry* fg_job;
  std::map<int,JobEntry> _jobs;
+ std::map<int,JobEntry*> _stopped_jobs;
  public:
   JobsList() = default;
   ~JobsList(){}
@@ -150,8 +155,9 @@ class JobsList {
   JobEntry * getJobById(int jobId);
   void removeJobById(int jobId);
   JobEntry * getLastJob(int* lastJobId);
-  JobEntry *getLastStoppedJob(int *jobId);
+  JobEntry *getLastStoppedJob(int *lastJobId);
   std::map<int,JobEntry>& getJobs();
+  std::map<int,JobEntry*>& getStoppedJobs();
   // TODO: Add extra methods or modify exisitng ones as needed
 };
 
@@ -168,7 +174,8 @@ class KillCommand : public BuiltInCommand {
 class ForegroundCommand : public BuiltInCommand {
  // TODO: Add your data members
  public:
-  ForegroundCommand(const char* cmd_line, JobsList* jobs);
+  //ForegroundCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line);
+  ForegroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line){};
   virtual ~ForegroundCommand() {}
   void execute() override;
 };
@@ -183,7 +190,7 @@ class BackgroundCommand : public BuiltInCommand {
 
 class CatCommand : public BuiltInCommand {
  public:
-  CatCommand(const char* cmd_line);
+  CatCommand(const char* cmd_line):BuiltInCommand(cmd_line){};
   virtual ~CatCommand() {}
   void execute() override;
 };
