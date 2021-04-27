@@ -31,7 +31,7 @@ class BuiltInCommand : public Command {
 
 class ExternalCommand : public Command {
  public:
-  ExternalCommand(char* cmd_line);
+  ExternalCommand(const char* cmd_line);
   virtual ~ExternalCommand() {}
   void execute() override;
 };
@@ -148,7 +148,8 @@ class JobsList {
  public:
   JobsList() = default;
   ~JobsList(){}
-  void addJob(Command* cmd, bool isStopped = false);
+  //void addJob(Command* cmd, bool isStopped = false);
+  void addJob(const char * cmd_line, bool isStopped = false);
   void printJobsList();
   void killAllJobs();
   void removeFinishedJobs();

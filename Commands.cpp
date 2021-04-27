@@ -148,41 +148,42 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
-  _removeBackgroundSign(cmd_s.c_str());
+  char * cmd = &cmd_s[0];
+  _removeBackgroundSign(cmd);
   if (firstWord.compare("chprompt") == 0)
   {
-    return new ChangePromptCommand(cmd_s);
+    return new ChangePromptCommand(cmd);
   }
   if (firstWord.compare("showpid") == 0)
   {
-    return new ShowPIDCommand(cmd_s);
+    return new ShowPIDCommand(cmd);
   }
   if (firstWord.compare("pwd") == 0)
   {
-    return new PwdCommand(cmd_s);
+    return new PwdCommand(cmd);
   }
   if (firstWord.compare("cd") == 0)
   {
-    return new CdCommand(cmd_s);
+    return new CdCommand(cmd);
   }
   if (firstWord.compare("jobs") == 0)
   {
-    return new JobsCommand(cmd_s);
+    return new JobsCommand(cmd);
   }
   if (firstWord.compare("kill") == 0)
   {
-    return new KillCommand(cmd_s);
+    return new KillCommand(cmd);
   }
   if (firstWord.compare("fg") == 0)
   {
-    return new ForegroundCommand(cmd_s);
+    return new ForegroundCommand(cmd);
   }
   if (firstWord.compare("bg") == 0)
   {
-    return new BackgroundCommand(cmd_s);
+    return new BackgroundCommand(cmd);
   }
   if (firstWord.compare("quit") == 0){
-    return new QuitCommand(cmd_s);
+    return new QuitCommand(cmd);
   }
   
 
@@ -560,7 +561,14 @@ void QuitCommand::execute(){
 
 
 //ExternalCommand
-ExternalCommand::ExternalCommand(const char* cmd_line){
-  if (execv("bash",)!=-1)
+ExternalCommand::ExternalCommand(const char* cmd_line):Command(cmd_line){
+  int id = fork();
+  if(id==0){
+    //execv
+    execv("/bin/bash",{"-c",cmd_line,nullptr});
+  }
+  else{
+    SmallShell::getInstance().getJobsList().addJob(cmd_line);
+  }
   
 }
