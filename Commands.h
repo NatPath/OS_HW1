@@ -31,7 +31,7 @@ class BuiltInCommand : public Command {
 
 class ExternalCommand : public Command {
  public:
-  ExternalCommand(const char* cmd_line);
+  ExternalCommand(const char* cmd_line):Command(cmd_line){};
   virtual ~ExternalCommand() {}
   void execute() override;
 };
@@ -130,7 +130,7 @@ class JobsList {
    bool _stopped;
 
    public:
-   JobEntry(int id,std::string command);
+   JobEntry(int id,pid_t pid,std::string command);
    int getId();
    void setId(int id);
    pid_t get_pid() const;
@@ -149,7 +149,7 @@ class JobsList {
   JobsList() = default;
   ~JobsList(){}
   //void addJob(Command* cmd, bool isStopped = false);
-  void addJob(const char * cmd_line, bool isStopped = false);
+  void addJob(const char * cmd_line,pid_t pid, bool isStopped = false);
   void printJobsList();
   void killAllJobs();
   void removeFinishedJobs();
