@@ -13,11 +13,12 @@ class Command {
 protected:
 std::vector<std::string> _args;
 int _args_num;
-
+std::streambuf* output;
  public:
-  Command(const char* cmd_line);
+  Command(const char* cmd_line,std::streambuf* output = std::cout.rdbuf() );
   virtual ~Command(){};
   virtual void execute() = 0;
+  void executeWrapper();
   //virtual void prepare();
   //virtual void cleanup();
   // TODO: Add your extra methods if needed
@@ -31,7 +32,7 @@ class BuiltInCommand : public Command {
 
 class ExternalCommand : public Command {
  public:
-  ExternalCommand(const char* cmd_line):Command(cmd_line){};
+  ExternalCommand(const char* cmd_line);
   virtual ~ExternalCommand() {}
   void execute() override;
 };
@@ -39,8 +40,12 @@ class ExternalCommand : public Command {
 
 class PipeCommand : public Command {
   // TODO: Add your data members
+ private:
+ Command* _cmd1;
+ Command* _cmd2;
  public:
-  PipeCommand(const char* cmd_line);
+ //maybe other arguments
+  PipeCommand(Command& command1, Command& command2);
   virtual ~PipeCommand() {}
   void execute() override;
 };

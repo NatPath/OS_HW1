@@ -98,6 +98,35 @@ void _removeBackgroundSign(char *cmd_line)
   cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
+//enum of the 5 types of commands, 4 specials and 1 regular.
+typedef enum e_special_cmd {PIPERR_CMD,PIPE_CMD,REDIRECT_CMD,REDIRECT_APPEND_CMD,REGULAR_CMD} SpecialCmd;
+
+/**
+ * isSpecialCmd (string cmd , int* pos):
+ * gets a command string and returns the enum fitting the type of the command.
+ * also puts the position of the "delimiter" in *pos.
+ * 
+ * */
+SpecialCmd isSpecialCmd(string cmd,int* pos){
+  if (cmd.find("|&")!=string::npos){
+    *pos = cmd.find("|&");
+    return PIPERR_CMD;
+  }
+  if (cmd.find("|")!=string::npos){
+    *pos = cmd.find("|"); 
+    return PIPE_CMD;
+  }
+  if (cmd.find(">>")!=string::npos){
+    *pos = cmd.find(">>"); 
+    return REDIRECT_APPEND_CMD;
+  }
+  if (cmd.find(">")!=string::npos){
+    *pos = cmd.find(">");
+    return REDIRECT_CMD;
+  }
+  return REGULAR_CMD;
+}
+
 // TODO: Add your implementation for classes in Commands.h
 
 SmallShell::SmallShell()
@@ -145,6 +174,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
 
 */
   string cmd_s = _trim(string(cmd_line));
+
+
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
   char *cmd = &cmd_s[0];
@@ -203,6 +234,29 @@ void SmallShell::executeCommand(const char *cmd_line)
   // Command* cmd = CreateCommand(cmd_line);
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
+
+  string cmd_s = _trim(string(cmd_line));
+// recognize type of command
+  int pos;
+  SpecialCmd cmd_type = isSpecialCmd(cmd_s,&pos);
+  //not necessarily using switch..  
+  //Just thinking outloud. 
+  switch(cmd_type){
+    //Pipes- should execute both sides.
+    //redirect output of left side to the input of right side in some way (fd handeling or change of std::cout/cin) 
+    case PIPERR_CMD: // " |& "
+      break;
+    case PIPE_CMD: // " | "
+      break;
+    //Redirect- 
+    case REDIRECT_CMD: // " > "
+      break;
+    case REDIRECT_APPEND_CMD: // " >> "
+      break;
+    case REGULAR_CMD: 
+      break;
+  }
+
   Command *new_command = CreateCommand(cmd_line);
 
   if (new_command == nullptr)
@@ -283,6 +337,11 @@ JobsList::JobEntry *JobsList::getJobById(int jobId)
   return (found == _jobs.end()) ? nullptr : &(found->second);
 }
 
+/**
+ *  getLastJob: 
+ * Returns the last jobEntry in the JobsList - if the joblist is empty , returns nullptr.
+ * Also puts the ID of the last job in *lastJobId.
+ * */
 JobsList::JobEntry *JobsList::getLastJob(int *lastJobId)
 {
 
@@ -579,6 +638,7 @@ ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line)
   char *arg[] = {"-c", cmd, nullptr};
   if (id == 0)
   {
+    setpgrp();
     execv("/bin/bash", arg);
   }
   else
@@ -588,10 +648,14 @@ ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line)
     JobsList::JobEntry job = JobsList::JobEntry(*jobId+1,id,cmd_s);
 
     SmallShell::getInstance().getJobsList().getJobs().insert(std::pair<int,JobsList::JobEntry>(*jobId+1,job));
+    //if last character is not &
     if (strcmp(cmd_s.substr(cmd_s.length() - 1, 1).c_str(), "&") != 0)
     {
       //run in foreground
       waitpid(id, nullptr, 0);
     }
   }
+}
+void ExternalCommand::execute(){
+
 }
