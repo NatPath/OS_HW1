@@ -659,3 +659,34 @@ ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line)
 void ExternalCommand::execute(){
 
 }
+
+//pipe
+void PipeCommand::execute(){
+  int fd[2];
+  pipe(fd);
+  if(pid_t id = fork()==0){
+    close(fd[0]); // close read 
+    int oldOut = dup(1);
+    dup2(fd[1],1); // redirects output to stdout
+    _cmd1->execute();
+    dup2(oldOut,1); // restore output
+  }
+  else{
+    close(fd[1]);
+    waitpid(id,nullptr,0);
+    int oldIn = dup(0);
+    dup2(fd[0],0);
+    _cmd2->execute();
+    dup2(oldIn,0);
+  }
+}
+
+//redirection
+void RedirectionCommand::execute(){
+  // fd will have to be created somewhere in this class, and will be set to write or append.
+  int oldOut = dup(1);
+  dup2(_fd,1);
+  // will only
+  _cmd->execute();
+  dup2(oldOut,1);
+}
