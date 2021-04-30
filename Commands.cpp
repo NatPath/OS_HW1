@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <iomanip>
 #include "Commands.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 using namespace std;
 
@@ -22,6 +25,30 @@ using namespace std;
 #define WHITESPACE " "
 #define MAX_PATH_LENGTH 255
 #endif
+
+// a macro in the spirit of the one showed in the lecture to make syscalls safe.
+// first argument is the syscall command.
+// second arguments it the variable (which should be intialized beforehand) which will hold the return value
+#define DO_SYS( SYSCALL , RET_VALUE ) do { \
+  RET_VALUE = SYSCALL ;\
+  if ( (SYSCALL) ==-1){\
+    perror_wrap(#SYSCALL);\
+    exit(1);\
+  }\
+} while (0)\
+
+
+/**
+ * perror_wrap -
+ * Gets a function call . for example gets "wait(1)"
+ * Does the perror with the required formating. in the example  "smash error: wait failed"
+ * */
+void perror_wrap(const char* func_errored){
+  std::string func_string = func_errored;  
+  std::string error_string = "smash error: " + func_string.substr(0,func_string.find('(')) + " failed";
+  perror(error_string.c_str());
+  
+}
 
 string _ltrim(const std::string &s)
 {
@@ -141,6 +168,25 @@ SmallShell::~SmallShell()
   // TODO: add your implementation
 }
 
+void SmallShell::killFg(){
+  std::cout<<"smash: got ctrl-C";
+  int junk;
+  if(_fg_job){
+    DO_SYS(kill(_fg_job->get_pid(),SIGKILL),junk);
+    std::cout<<"smash: process "<<_fg_job->get_pid()<<" was killed";
+  }
+}
+
+void SmallShell::stopFg(){
+  std::cout<<"smash: got ctrl-Z";
+  int junk;
+   if(_fg_job){
+    SmallShell::getInstance().getJobsList().getStoppedJobs().insert(std::pair<int,JobsList::JobEntry*>(_fg_job->getId(),_fg_job));
+    DO_SYS(kill(_fg_job->get_pid(),SIGSTOP),junk);
+    std::cout<<"smash: process "<<_fg_job->get_pid()<<" was stopped";
+  }
+}
+
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
@@ -179,6 +225,9 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
   char *cmd = &cmd_s[0];
+  if (cmd_s==""){
+    return nullptr;
+  }
   _removeBackgroundSign(cmd);
   if (firstWord.compare("chprompt") == 0)
   {
@@ -217,15 +266,69 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
     return new QuitCommand(cmd);
   }
 
+  return new ExternalCommand(cmd_line);
+
   /*
   if (string(args[0]).compare("chprompt")==0){
         
   }
   */
   //delete[] args;
-
-  return nullptr;
 }
+
+
+void handlePipe(string cmd, int delimeter){
+  const char * first = cmd.substr(0,delimeter).c_str();
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(first);
+  const char * second = cmd.substr(delimeter+1,cmd.length()-1).c_str();
+  Command *cmd2 = SmallShell::getInstance().CreateCommand(second);
+
+  PipeCommand new_pipe = PipeCommand(cmd1,cmd2,false);
+  new_pipe.execute();
+
+}
+
+void handlePiperr(string cmd, int delimeter){
+  const char * first = cmd.substr(0,delimeter).c_str();
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(first);
+  const char * second = cmd.substr(delimeter+2,cmd.length()-1).c_str();
+  Command *cmd2 = SmallShell::getInstance().CreateCommand(second);
+
+  PipeCommand new_pipe = PipeCommand(cmd1,cmd2,true);
+  new_pipe.execute();
+
+}
+
+
+void handleRegular(const char *cmd_line){
+   Command *new_command = SmallShell::getInstance().CreateCommand(cmd_line);
+
+  if (new_command == nullptr)
+  {
+    std::cout << "invalid command" << std::endl;
+    return;
+  }
+  new_command->execute();
+}
+
+void handleRedirection(string cmd, int delimeter){
+  const char * first = cmd.substr(0,delimeter).c_str();
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(first);
+  const char * second = cmd.substr(delimeter+1,cmd.length()-1).c_str();
+ // int fd = open(second,O_CREAT| O_TRUNC);
+  RedirectionCommand new_re = RedirectionCommand(cmd1,second,false);
+  new_re.execute();
+}
+
+void handleRedirectionAppend(string cmd, int delimeter){
+  const char * first = cmd.substr(0,delimeter).c_str();
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(first);
+  const char * second = cmd.substr(delimeter+2,cmd.length()-1).c_str();
+ // int fd = open(second,O_CREAT| O_TRUNC);
+  RedirectionCommand new_re = RedirectionCommand(cmd1,second,true);
+  new_re.execute();
+}
+
 
 void SmallShell::executeCommand(const char *cmd_line)
 {
@@ -245,31 +348,33 @@ void SmallShell::executeCommand(const char *cmd_line)
     //Pipes- should execute both sides.
     //redirect output of left side to the input of right side in some way (fd handeling or change of std::cout/cin) 
     case PIPERR_CMD: // " |& "
+      handlePiperr(cmd_s,pos);
       break;
     case PIPE_CMD: // " | "
+      handlePipe(cmd_s,pos);
       break;
     //Redirect- 
     case REDIRECT_CMD: // " > "
+      handleRedirection(cmd_s,pos);
       break;
     case REDIRECT_APPEND_CMD: // " >> "
+      handleRedirectionAppend(cmd_s,pos);
       break;
     case REGULAR_CMD: 
+      handleRegular(cmd_line);
       break;
   }
 
-  Command *new_command = CreateCommand(cmd_line);
-
-  if (new_command == nullptr)
-  {
-    std::cout << "invalid command" << std::endl;
-    return;
-  }
-  new_command->execute();
+ 
 }
 
 string SmallShell::getPromptName()
 {
   return _prompt_name;
+}
+
+JobsList::JobEntry* SmallShell::getFgJob(){
+  return _fg_job;
 }
 void SmallShell::setPromptName(string new_name)
 {
@@ -311,6 +416,7 @@ JobsList::JobEntry *JobsList::getLastStoppedJob(int *lastJobId)
   }
   else
   {
+    *lastJobId = -1;
     return nullptr;
   }
 }
@@ -327,6 +433,9 @@ void JobsList::killAllJobs()
   {
     itt->second.die();
   }
+}
+void JobsList::setFgJob(JobsList::JobEntry* fg_job){
+  _fg_job=fg_job;
 }
 
 
@@ -353,6 +462,7 @@ JobsList::JobEntry *JobsList::getLastJob(int *lastJobId)
   }
   else
   {
+    *lastJobId = -1;
     return nullptr;
   }
 }
@@ -403,6 +513,7 @@ Command::Command(const char *cmd_line)
 {
   _args = vector<string>(COMMAND_MAX_ARGS);
   _args_num = _parseCommandLine(cmd_line, _args);
+  _original_cmd=cmd_line;
 }
 //chprompt
 
@@ -478,9 +589,17 @@ void CdCommand::execute()
 void JobsCommand::execute()
 {
   std::map<int, JobsList::JobEntry> _jobs = SmallShell::getInstance().getJobsList().getJobs();
+  int status;
+  int junk;
   for (auto it = _jobs.begin(); it != _jobs.end(); it++)
   {
-    it->second.printJob();
+    DO_SYS(waitpid(it->second.get_pid(),&status,WNOHANG),junk);
+    if(WIFEXITED(status)){
+      SmallShell::getInstance().getJobsList().removeJobById(it->first);
+    }
+    else{
+      it->second.printJob();
+    }
   }
 }
 
@@ -629,64 +748,99 @@ void QuitCommand::execute()
 }
 
 //ExternalCommand
-ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line)
-{
-  pid_t id = fork();
-  string cmd_s = _trim(string(cmd_line));
-
+void ExternalCommand::execute(){
+  string cmd_s = _trim(string(_original_cmd));
   char *cmd = &cmd_s[0];
-  char *arg[] = {"-c", cmd, nullptr};
+  pid_t id;
+  DO_SYS(fork(),id);
   if (id == 0)
   {
     setpgrp();
-    execv("/bin/bash", arg);
+    execl("/bin/bash", "bash","-c", _original_cmd, nullptr);
   }
   else
   {
-    int *jobId;
-    SmallShell::getInstance().getJobsList().getLastJob(jobId);
-    JobsList::JobEntry job = JobsList::JobEntry(*jobId+1,id,cmd_s);
+    int jobid = 0;
+    SmallShell::getInstance().getJobsList().getLastJob(&jobid);
+    JobsList::JobEntry job = JobsList::JobEntry(jobid+1,id,cmd_s);
 
-    SmallShell::getInstance().getJobsList().getJobs().insert(std::pair<int,JobsList::JobEntry>(*jobId+1,job));
+    SmallShell::getInstance().getJobsList().getJobs().insert(std::pair<int,JobsList::JobEntry>(jobid+1,job));
     //if last character is not &
     if (strcmp(cmd_s.substr(cmd_s.length() - 1, 1).c_str(), "&") != 0)
     {
       //run in foreground
+      SmallShell::getInstance().getJobsList().setFgJob(&job);
       waitpid(id, nullptr, 0);
+      SmallShell::getInstance().getJobsList().setFgJob(nullptr);
+
     }
+
   }
-}
-void ExternalCommand::execute(){
+  
 
 }
 
 //pipe
+PipeCommand::PipeCommand(Command* command1, Command* command2, bool err){
+  _cmd1 = command1;
+  _cmd1 = command2;
+  _fdt_entry = err? 2:1;
+}
 void PipeCommand::execute(){
   int fd[2];
-  pipe(fd);
-  if(pid_t id = fork()==0){
-    close(fd[0]); // close read 
-    int oldOut = dup(1);
-    dup2(fd[1],1); // redirects output to stdout
-    _cmd1->execute();
-    dup2(oldOut,1); // restore output
+  int pipe_ret_value;
+  DO_SYS ( pipe(fd) , pipe_ret_value );
+  //the above line is supposed to be a safer way doing the below commented block
+  /*
+  if (pipe(fd)==-1){
+    perror("smash error: pipe failed");
+    return;
   }
+  */
+  pid_t id;
+  DO_SYS(fork(),id);
+  int junk_ret;// dummy argument for DO_SYS
+  //son
+  if(id ==0){
+    setpgrp();
+    DO_SYS(close(fd[0]),junk_ret); // close read
+    int oldOut;
+    DO_SYS(dup(_fdt_entry),oldOut);
+    DO_SYS(dup2(fd[1],_fdt_entry),junk_ret);// redirects output to stdout (maybe the opposite?)
+    _cmd1->execute();
+    DO_SYS(dup2(oldOut,_fdt_entry),junk_ret); //restores output back
+  }
+  //parent
   else{
-    close(fd[1]);
-    waitpid(id,nullptr,0);
-    int oldIn = dup(0);
-    dup2(fd[0],0);
+    DO_SYS(close(fd[1]),junk_ret);
+    int oldIn;
+    DO_SYS(dup(0),oldIn);
+    DO_SYS(dup2(fd[0],0),junk_ret);
+    DO_SYS(waitpid(id,nullptr,0),junk_ret);
     _cmd2->execute();
-    dup2(oldIn,0);
+    DO_SYS(dup2(oldIn,0),junk_ret);
   }
 }
 
-//redirection
+//Redirection
+RedirectionCommand::RedirectionCommand(Command* cmd,const char* file_name,bool append):Command(){
+  _cmd = cmd;
+  if(append){
+    _fd = open(file_name,O_WRONLY | O_CREAT | O_APPEND);
+  }
+  else{
+    _fd = open(file_name,O_WRONLY | O_CREAT | O_TRUNC);
+
+  }
+  
+  
+}
 void RedirectionCommand::execute(){
   // fd will have to be created somewhere in this class, and will be set to write or append.
-  int oldOut = dup(1);
-  dup2(_fd,1);
-  // will only
+  int oldOut;
+  int junk;
+  DO_SYS(dup(1),oldOut);
+  DO_SYS(dup2(_fd,1),junk);
   _cmd->execute();
-  dup2(oldOut,1);
+  DO_SYS(dup2(oldOut,1),junk);
 }

@@ -11,11 +11,14 @@
 class Command {
 // TODO: Add your data members
 protected:
+const char* _original_cmd;
 std::vector<std::string> _args;
 int _args_num;
-std::streambuf* output;
+
  public:
-  Command(const char* cmd_line,std::streambuf* output = std::cout.rdbuf() );
+ // command(const char* cmd_line,std::streambuf* output = std::cout.rdbuf() );
+  Command(){};
+  Command(const char* cmd_line);
   virtual ~Command(){};
   virtual void execute() = 0;
   void executeWrapper();
@@ -32,7 +35,7 @@ class BuiltInCommand : public Command {
 
 class ExternalCommand : public Command {
  public:
-  ExternalCommand(const char* cmd_line);
+  ExternalCommand(const char* cmd_line):Command(cmd_line){};
   virtual ~ExternalCommand() {}
   void execute() override;
 };
@@ -43,9 +46,10 @@ class PipeCommand : public Command {
  private:
  Command* _cmd1;
  Command* _cmd2;
+ int _fdt_entry;
  public:
  //maybe other arguments
-  PipeCommand(Command& command1, Command& command2);
+  PipeCommand(Command* command1, Command* command2, bool err);
   virtual ~PipeCommand() {}
   void execute() override;
 };
@@ -55,7 +59,7 @@ class RedirectionCommand : public Command {
  int _fd;
  Command* _cmd;
  public:
-  explicit RedirectionCommand(const char* cmd_line);
+  explicit RedirectionCommand(Command* cmd,const char * file_name,bool append);
   virtual ~RedirectionCommand() {}
   void execute() override;
   //void prepare() override;
@@ -149,7 +153,7 @@ class JobsList {
   };
  // TODO: Add your data members
  private:
- JobEntry* fg_job;
+ JobEntry* _fg_job;
  std::map<int,JobEntry> _jobs;
  std::map<int,JobEntry*> _stopped_jobs;
  public:
@@ -166,6 +170,7 @@ class JobsList {
   JobEntry *getLastStoppedJob(int *lastJobId);
   std::map<int,JobEntry>& getJobs();
   std::map<int,JobEntry*>& getStoppedJobs();
+  void setFgJob(JobsList::JobEntry* fg_job);
   // TODO: Add extra methods or modify exisitng ones as needed
 };
 
@@ -210,6 +215,7 @@ class SmallShell {
   std::string _prompt_name ;
   std::string _last_working_dir;
   JobsList _jobsList;
+  JobsList::JobEntry* _fg_job;
   SmallShell();
  public:
   Command *CreateCommand(const char* cmd_line);
@@ -229,6 +235,9 @@ class SmallShell {
   std::string getLastWorkingDir();
   void setLastWorkingDir(std::string new_dir);
   JobsList& getJobsList();
+  JobsList::JobEntry* getFgJob();
+  void killFg();
+  void stopFg();
   
 };
 

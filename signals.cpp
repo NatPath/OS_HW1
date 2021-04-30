@@ -7,10 +7,14 @@ using namespace std;
 
 void ctrlZHandler(int sig_num) {
 	// TODO: Add your implementation
+  SmallShell::getInstance().stopFg();
 }
 
 void ctrlCHandler(int sig_num) {
   // TODO: Add your implementation
+  
+  SmallShell::getInstance().killFg();
+  
 }
 
 void alarmHandler(int sig_num) {
