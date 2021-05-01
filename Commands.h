@@ -145,6 +145,7 @@ class JobsList {
    int getId();
    void setId(int id);
    pid_t get_pid() const;
+   void set_stopped(bool stopped);
    void printJob();
    void stopJob();
    void die();

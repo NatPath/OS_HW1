@@ -183,6 +183,8 @@ void SmallShell::stopFg(){
    if(_fg_job){
     SmallShell::getInstance().getJobsList().getStoppedJobs().insert(std::pair<int,JobsList::JobEntry*>(_fg_job->getId(),_fg_job));
     DO_SYS(kill(_fg_job->get_pid(),SIGSTOP),junk);
+    _fg_job->set_stopped(true);
+
     std::cout<<"smash: process "<<_fg_job->get_pid()<<" was stopped";
   }
 }
@@ -446,6 +448,10 @@ JobsList::JobEntry *JobsList::getJobById(int jobId)
   return (found == _jobs.end()) ? nullptr : &(found->second);
 }
 
+void JobsList::JobEntry::set_stopped(bool stopped){
+  _stopped = stopped;
+}
+
 /**
  *  getLastJob: 
  * Returns the last jobEntry in the JobsList - if the joblist is empty , returns nullptr.
@@ -473,6 +479,7 @@ JobsList::JobEntry::JobEntry(int id,pid_t pid, std::string command)
   _jobId = id;
   _pid = pid;
   _command = command;
+  _stopped = false;
 }
 
 int JobsList::JobEntry::getId()
@@ -590,15 +597,16 @@ void JobsCommand::execute()
 {
   std::map<int, JobsList::JobEntry>* jobs = &SmallShell::getInstance().getJobsList().getJobs();
   int status;
-  int junk;
+  int ret;
   int pid;
   int jobs_size=jobs->size();
   for (auto it = jobs->begin(),next_it=it; it != jobs->end(); it= next_it)
   {
     next_it++;
     pid=it->second.get_pid();
-    DO_SYS(waitpid(it->second.get_pid(),&status,WNOHANG),junk);
-    if(WIFEXITED(status)){
+    DO_SYS(waitpid(it->second.get_pid(),&status,WNOHANG),ret);
+  
+    if(ret){
       SmallShell::getInstance().getJobsList().removeJobById(it->first);
     }
     else{
@@ -761,7 +769,8 @@ void ExternalCommand::execute(){
   if (id == 0)
   {
     setpgrp();
-    execl("/bin/bash", "bash","-c", _original_cmd, nullptr);
+    _removeBackgroundSign(cmd);
+    execl("/bin/bash", "bash","-c",cmd, nullptr);
   }
   else
   {
