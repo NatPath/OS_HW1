@@ -413,12 +413,16 @@ JobsList::JobEntry *JobsList::getLastStoppedJob(int *lastJobId)
   if (!_stopped_jobs.empty())
   {
     auto max_it = _stopped_jobs.rbegin();
-    *lastJobId = max_it->first;
+    if (lastJobId!=nullptr){
+      *lastJobId = max_it->first;
+    }
     return max_it->second;
   }
   else
   {
-    *lastJobId = -1;
+    if (lastJobId!=nullptr){
+      *lastJobId = -1;
+    }
     return nullptr;
   }
 }
@@ -639,10 +643,8 @@ void KillCommand::execute()
     }
     signum *= -1;
 
-    if (kill(target->get_pid(), signum) != 0)
-    {
-      perror("smash error: kill failed");
-    }
+    int ret;
+    DO_SYS(kill(target->get_pid(),signum),ret);
 
     std::cout << "signal number " << signum << " was sent to pid " << target->get_pid() << std::endl;
   }
@@ -657,37 +659,40 @@ void KillCommand::execute()
 
 void ForegroundCommand::execute()
 {
-  JobsList jobsList = SmallShell::getInstance().getJobsList();
-  std::map<int, JobsList::JobEntry> jobs = jobsList.getJobs();
+  int junk;
+  JobsList *jobsList = &SmallShell::getInstance().getJobsList();
+  std::map<int, JobsList::JobEntry> *jobs = &jobsList->getJobs();
   if (_args_num == 1)
   {
-    if (jobs.empty())
+    if (jobs->empty())
     {
       std::cerr << "smash error: fg: jobs list is empty" << std::endl;
     }
     else
     {
-      auto last = jobs.rbegin();
+      auto last = jobs->rbegin();
       std::cout << last->second << std::endl;
-      kill(last->second.get_pid(), SIGCONT);
+      DO_SYS(kill(last->second.get_pid(), SIGCONT),junk);
+      SmallShell::getInstance().getJobsList().setFgJob(&last->second);
       waitpid(last->second.get_pid(), nullptr, 0);
-      jobsList.removeJobById(last->second.getId());
+      jobsList->removeJobById(last->second.getId());
+      SmallShell::getInstance().getJobsList().setFgJob(nullptr);
     }
     return;
   }
   if (_args_num == 2)
   {
-    auto found_job = jobs.find(stoi(_args[1]));
-    if (found_job == jobs.end())
+    auto found_job = jobs->find(stoi(_args[1]));
+    if (found_job == jobs->end())
     {
       std::cerr << "smash error: fg: job-id " << _args[1] << " does not exist" << std::endl;
     }
     else
     {
       std::cout << found_job->second << std::endl;
-      kill(found_job->second.get_pid(), SIGCONT);
+      DO_SYS(kill(found_job->second.get_pid(), SIGCONT),junk);
       waitpid(found_job->second.get_pid(), nullptr, 0);
-      jobsList.removeJobById(found_job->second.getId());
+      jobsList->removeJobById(found_job->second.getId());
     }
   }
   else
@@ -699,6 +704,7 @@ void ForegroundCommand::execute()
 //bg
 void BackgroundCommand::execute()
 {
+  int junk;
   try
   {
     if (_args_num != 2 && _args_num != 1)
@@ -706,21 +712,21 @@ void BackgroundCommand::execute()
       throw std::invalid_argument("");
     }
 
-    JobsList JobsList = SmallShell::getInstance().getJobsList();
+    JobsList* JobsList = &SmallShell::getInstance().getJobsList();
     JobsList::JobEntry *target;
 
     if (_args_num == 2)
     {
       int jobId = std::stoi(_args[1]);
 
-      target = JobsList.getJobById(jobId);
+      target = JobsList->getJobById(jobId);
       if (!target)
       {
         std::cerr << "smash error: bg: job-id " << jobId << " does not exist" << std::endl;
         return;
       }
 
-      if (JobsList.getStoppedJobs().find(jobId) == JobsList.getStoppedJobs().end())
+      if (JobsList->getStoppedJobs().find(jobId) == JobsList->getStoppedJobs().end())
       {
         std::cerr << "smash error: bg: job-id " << jobId << " is already running in the background" << std::endl;
         return;
@@ -728,7 +734,7 @@ void BackgroundCommand::execute()
     }
     else
     {
-      target = JobsList.getLastStoppedJob(nullptr);
+      target = JobsList->getLastStoppedJob(nullptr);
 
       if (target == nullptr)
       {
@@ -738,8 +744,8 @@ void BackgroundCommand::execute()
     }
 
     std::cout << target;
-    kill(target->get_pid(), SIGCONT);
-    JobsList.removeJobById(target->getId());
+    DO_SYS(kill(target->get_pid(), SIGCONT),junk);
+    JobsList->removeJobById(target->getId());
   }
   catch (const std::invalid_argument &)
   {
