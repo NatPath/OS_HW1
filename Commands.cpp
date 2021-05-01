@@ -267,6 +267,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
   {
     return new QuitCommand(cmd);
   }
+  if (firstWord.compare("cat") == 0)
+  {
+    return new CatCommand(cmd);
+  }
 
   return new ExternalCommand(cmd_line);
 
@@ -311,6 +315,7 @@ void handleRegular(const char *cmd_line){
     return;
   }
   new_command->execute();
+  delete(new_command);
 }
 
 void handleRedirection(string cmd, int delimeter){
@@ -320,6 +325,7 @@ void handleRedirection(string cmd, int delimeter){
  // int fd = open(second,O_CREAT| O_TRUNC);
   RedirectionCommand new_re = RedirectionCommand(cmd1,second,false);
   new_re.execute();
+  delete(cmd1);
 }
 
 void handleRedirectionAppend(string cmd, int delimeter){
@@ -329,6 +335,7 @@ void handleRedirectionAppend(string cmd, int delimeter){
  // int fd = open(second,O_CREAT| O_TRUNC);
   RedirectionCommand new_re = RedirectionCommand(cmd1,second,true);
   new_re.execute();
+  delete(cmd1);
 }
 
 
@@ -804,7 +811,7 @@ void ExternalCommand::execute(){
 //pipe
 PipeCommand::PipeCommand(Command* command1, Command* command2, bool err){
   _cmd1 = command1;
-  _cmd1 = command2;
+  _cmd2 = command2;
   _fdt_entry = err? 2:1;
 }
 void PipeCommand::execute(){
@@ -827,7 +834,7 @@ void PipeCommand::execute(){
     DO_SYS(close(fd[0]),junk_ret); // close read
     int oldOut;
     DO_SYS(dup(_fdt_entry),oldOut);
-    DO_SYS(dup2(fd[1],_fdt_entry),junk_ret);// redirects output to stdout (maybe the opposite?)
+    DO_SYS(dup2(fd[1],_fdt_entry),junk_ret);// redirects output to stdout
     _cmd1->execute();
     DO_SYS(dup2(oldOut,_fdt_entry),junk_ret); //restores output back
   }
@@ -841,20 +848,19 @@ void PipeCommand::execute(){
     _cmd2->execute();
     DO_SYS(dup2(oldIn,0),junk_ret);
   }
+  close(fd[0]);
+  close(fd[1]);
 }
 
 //Redirection
 RedirectionCommand::RedirectionCommand(Command* cmd,const char* file_name,bool append):Command(){
   _cmd = cmd;
   if(append){
-    _fd = open(file_name,O_WRONLY | O_CREAT | O_APPEND);
+    DO_SYS(open(file_name,O_WRONLY | O_CREAT | O_APPEND),_fd);
   }
   else{
-    _fd = open(file_name,O_WRONLY | O_CREAT | O_TRUNC);
-
+    DO_SYS(open(file_name,O_WRONLY | O_CREAT | O_TRUNC),_fd);
   }
-  
-  
 }
 void RedirectionCommand::execute(){
   // fd will have to be created somewhere in this class, and will be set to write or append.
@@ -864,4 +870,39 @@ void RedirectionCommand::execute(){
   DO_SYS(dup2(_fd,1),junk);
   _cmd->execute();
   DO_SYS(dup2(oldOut,1),junk);
+}
+
+//cat 
+
+//writes the content of a file with the given fd to standard output
+void print_file(int fd){
+  size_t size_of_file= lseek(fd,0,SEEK_END);
+  lseek(fd,0,SEEK_SET);
+  char *buff=(char*)malloc(size_of_file*sizeof(char));
+  if (read(fd,buff,size_of_file)==-1){
+    std::cerr<<"smash error: read failed";
+  }
+  else{
+    int junk=0;
+    DO_SYS(write(1,buff,size_of_file),junk);
+  }
+}
+void CatCommand::execute(){
+  if (_args_num == 1){
+    std::cerr<<"smash error: cat: not enough arguments";
+  }
+  auto itt= _args.begin();
+  itt++;
+  int current_file;
+
+  for (;itt!=_args.end() && *itt!="";itt++){
+    current_file = open((*itt).c_str(),O_RDONLY);
+    if (current_file==-1){
+      perror("smash error: open failed");
+    }
+    else{
+      print_file(current_file);
+      close(current_file);
+    }
+  }
 }
