@@ -31,7 +31,7 @@ using namespace std;
 // second arguments it the variable (which should be intialized beforehand) which will hold the return value
 #define DO_SYS( SYSCALL , RET_VALUE ) do { \
   RET_VALUE = SYSCALL ;\
-  if ( (SYSCALL) ==-1){\
+  if ( RET_VALUE ==-1){\
     perror_wrap(#SYSCALL);\
     exit(1);\
   }\
@@ -588,11 +588,15 @@ void CdCommand::execute()
 // jobs
 void JobsCommand::execute()
 {
-  std::map<int, JobsList::JobEntry> _jobs = SmallShell::getInstance().getJobsList().getJobs();
+  std::map<int, JobsList::JobEntry>* jobs = &SmallShell::getInstance().getJobsList().getJobs();
   int status;
   int junk;
-  for (auto it = _jobs.begin(); it != _jobs.end(); it++)
+  int pid;
+  int jobs_size=jobs->size();
+  for (auto it = jobs->begin(),next_it=it; it != jobs->end(); it= next_it)
   {
+    next_it++;
+    pid=it->second.get_pid();
     DO_SYS(waitpid(it->second.get_pid(),&status,WNOHANG),junk);
     if(WIFEXITED(status)){
       SmallShell::getInstance().getJobsList().removeJobById(it->first);
@@ -749,6 +753,7 @@ void QuitCommand::execute()
 
 //ExternalCommand
 void ExternalCommand::execute(){
+  int junk;
   string cmd_s = _trim(string(_original_cmd));
   char *cmd = &cmd_s[0];
   pid_t id;
@@ -770,7 +775,8 @@ void ExternalCommand::execute(){
     {
       //run in foreground
       SmallShell::getInstance().getJobsList().setFgJob(&job);
-      waitpid(id, nullptr, 0);
+      DO_SYS(waitpid(id, nullptr, 0),junk);
+      SmallShell::getInstance().getJobsList().getJobs().erase(jobid+1);
       SmallShell::getInstance().getJobsList().setFgJob(nullptr);
 
     }
