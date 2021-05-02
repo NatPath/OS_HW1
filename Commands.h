@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <string.h>
+#include <unistd.h>
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 
@@ -169,6 +170,7 @@ class JobsList {
   void removeJobById(int jobId);
   JobEntry * getLastJob(int* lastJobId);
   JobEntry *getLastStoppedJob(int *lastJobId);
+  JobEntry* getFgJob();
   std::map<int,JobEntry>& getJobs();
   std::map<int,JobEntry*>& getStoppedJobs();
   void setFgJob(JobsList::JobEntry* fg_job);

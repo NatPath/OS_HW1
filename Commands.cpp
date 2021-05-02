@@ -171,8 +171,9 @@ SmallShell::~SmallShell()
 void SmallShell::killFg(){
   std::cout<<"smash: got ctrl-C";
   int junk;
-  if(_fg_job){
-    DO_SYS(kill(_fg_job->get_pid(),SIGKILL),junk);
+  JobsList::JobEntry* fg = _jobsList.getFgJob();
+  if(fg){
+    DO_SYS(kill(fg->get_pid(),SIGKILL),junk);
     std::cout<<"smash: process "<<_fg_job->get_pid()<<" was killed";
   }
 }
@@ -413,6 +414,10 @@ std::map<int, JobsList::JobEntry> &JobsList::getJobs()
 std::map<int, JobsList::JobEntry *> &JobsList::getStoppedJobs()
 {
   return _stopped_jobs;
+}
+
+JobsList::JobEntry * JobsList::getFgJob(){
+  return _fg_job;
 }
 
 JobsList::JobEntry *JobsList::getLastStoppedJob(int *lastJobId)
