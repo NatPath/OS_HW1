@@ -189,6 +189,10 @@ void SmallShell::stopFg(){
   }
 }
 
+const char* Command::getOriginalCommand(){
+  return _original_cmd;
+}
+
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
@@ -884,7 +888,7 @@ void PipeCommand::execute(){
 }
 
 //Redirection
-RedirectionCommand::RedirectionCommand(Command* cmd,const char* file_name,bool append):Command(){
+RedirectionCommand::RedirectionCommand(Command* cmd,const char* file_name,bool append):Command(cmd->getOriginalCommand()){
   _cmd = cmd;
   if(append){
     DO_SYS(open(file_name,O_RDWR | O_CREAT | O_APPEND,S_IRWXU),_fd);
