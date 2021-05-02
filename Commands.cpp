@@ -33,7 +33,6 @@ using namespace std;
   RET_VALUE = SYSCALL ;\
   if ( RET_VALUE ==-1){\
     perror_wrap(#SYSCALL);\
-    exit(1);\
   }\
 } while (0)\
 
@@ -174,19 +173,20 @@ void SmallShell::killFg(){
   JobsList::JobEntry* fg = _jobsList.getFgJob();
   if(fg){
     DO_SYS(kill(fg->get_pid(),SIGKILL),junk);
-    std::cout<<"smash: process "<<_fg_job->get_pid()<<" was killed";
+    std::cout<<"smash: process "<<fg->get_pid()<<" was killed";
   }
 }
 
 void SmallShell::stopFg(){
   std::cout<<"smash: got ctrl-Z";
   int junk;
-   if(_fg_job){
-    SmallShell::getInstance().getJobsList().getStoppedJobs().insert(std::pair<int,JobsList::JobEntry*>(_fg_job->getId(),_fg_job));
-    DO_SYS(kill(_fg_job->get_pid(),SIGSTOP),junk);
-    _fg_job->set_stopped(true);
+  JobsList::JobEntry* fg = _jobsList.getFgJob();
+   if(fg){
+    SmallShell::getInstance().getJobsList().getStoppedJobs().insert(std::pair<int,JobsList::JobEntry*>(fg->getId(),fg));
+    DO_SYS(kill(fg->get_pid(),SIGSTOP),junk);
+    fg->set_stopped(true);
 
-    std::cout<<"smash: process "<<_fg_job->get_pid()<<" was stopped";
+    std::cout<<"smash: process "<<fg->get_pid()<<" was stopped";
   }
 }
 
@@ -322,7 +322,7 @@ void handleRegular(const char *cmd_line){
 void handleRedirection(string cmd, int delimeter){
   const char * first = cmd.substr(0,delimeter).c_str();
   Command *cmd1 = SmallShell::getInstance().CreateCommand(first);
-  const char * second = cmd.substr(delimeter+1,cmd.length()-1).c_str();
+  const char * second = _trim(cmd.substr(delimeter+1,cmd.length()-delimeter-1)).c_str();
  // int fd = open(second,O_CREAT| O_TRUNC);
   RedirectionCommand new_re = RedirectionCommand(cmd1,second,false);
   new_re.execute();
@@ -861,10 +861,10 @@ void PipeCommand::execute(){
 RedirectionCommand::RedirectionCommand(Command* cmd,const char* file_name,bool append):Command(){
   _cmd = cmd;
   if(append){
-    DO_SYS(open(file_name,O_WRONLY | O_CREAT | O_APPEND),_fd);
+    DO_SYS(open(file_name,O_RDWR | O_CREAT | O_APPEND,S_IRWXU),_fd);
   }
   else{
-    DO_SYS(open(file_name,O_WRONLY | O_CREAT | O_TRUNC),_fd);
+    DO_SYS(open(file_name,O_RDWR | O_CREAT | O_TRUNC,S_IRWXU),_fd);
   }
 }
 void RedirectionCommand::execute(){
