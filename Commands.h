@@ -149,6 +149,7 @@ class JobsList {
    void set_stopped(bool stopped);
    void printJob();
    void stopJob();
+   void contJob();
    void die();
    void proceedJob();
    friend std::ostream& operator<<(std::ostream& os,const JobEntry& job);

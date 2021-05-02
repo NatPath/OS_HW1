@@ -184,8 +184,7 @@ void SmallShell::stopFg(){
    if(fg){
     SmallShell::getInstance().getJobsList().getStoppedJobs().insert(std::pair<int,JobsList::JobEntry*>(fg->getId(),fg));
     DO_SYS(kill(fg->get_pid(),SIGSTOP),junk);
-    fg->set_stopped(true);
-
+    fg->stopJob();
     std::cout<<"smash: process "<<fg->get_pid()<<" was stopped";
   }
 }
@@ -296,13 +295,16 @@ void handlePipe(string cmd, int delimeter){
 }
 
 void handlePiperr(string cmd, int delimeter){
-  const char * first = cmd.substr(0,delimeter).c_str();
-  Command *cmd1 = SmallShell::getInstance().CreateCommand(first);
-  const char * second = cmd.substr(delimeter+2,cmd.length()-1).c_str();
-  Command *cmd2 = SmallShell::getInstance().CreateCommand(second);
+ // const char * first = cmd.substr(0,delimeter).c_str();
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(cmd.substr(0,delimeter).c_str());
+  //const char * second = cmd.substr(delimeter+2,cmd.length()-1).c_str();
+  Command *cmd2 = SmallShell::getInstance().CreateCommand(cmd.substr(delimeter+2,cmd.length()-1).c_str());
 
   PipeCommand new_pipe = PipeCommand(cmd1,cmd2,true);
   new_pipe.execute();
+
+  delete(cmd1);
+  delete(cmd2);
 
 }
 
@@ -319,22 +321,20 @@ void handleRegular(const char *cmd_line){
   delete(new_command);
 }
 
-void handleRedirection(string cmd, int delimeter){
-  const char * first = cmd.substr(0,delimeter).c_str();
-  Command *cmd1 = SmallShell::getInstance().CreateCommand(first);
-  const char * second = _trim(cmd.substr(delimeter+1,cmd.length()-delimeter-1)).c_str();
- // int fd = open(second,O_CREAT| O_TRUNC);
-  RedirectionCommand new_re = RedirectionCommand(cmd1,second,false);
+void handleRedirection(string& cmd, int delimeter){
+  //const char * first = cmd.substr(0,delimeter).c_str();
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(_trim(cmd.substr(0,delimeter)).c_str());
+ // const char * second = _trim(cmd.substr(delimeter+1,cmd.string::npos)).c_str();
+  RedirectionCommand new_re = RedirectionCommand(cmd1,_trim(cmd.substr(delimeter+1,cmd.string::npos)).c_str(),false);
   new_re.execute();
   delete(cmd1);
 }
 
-void handleRedirectionAppend(string cmd, int delimeter){
-  const char * first = cmd.substr(0,delimeter).c_str();
-  Command *cmd1 = SmallShell::getInstance().CreateCommand(first);
-  const char * second = cmd.substr(delimeter+2,cmd.length()-1).c_str();
- // int fd = open(second,O_CREAT| O_TRUNC);
-  RedirectionCommand new_re = RedirectionCommand(cmd1,second,true);
+void handleRedirectionAppend(string& cmd, int delimeter){
+  //const char * first = cmd.substr(0,delimeter).c_str();
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(cmd.substr(0,delimeter).c_str());
+  //const char * second = _trim(cmd.substr(delimeter+2,cmd.string::npos)).c_str();
+  RedirectionCommand new_re = RedirectionCommand(cmd1,_trim(cmd.substr(delimeter+2,cmd.string::npos)).c_str(),true);
   new_re.execute();
   delete(cmd1);
 }
@@ -466,6 +466,17 @@ JobsList::JobEntry *JobsList::getJobById(int jobId)
 
 void JobsList::JobEntry::set_stopped(bool stopped){
   _stopped = stopped;
+}
+void JobsList::JobEntry::stopJob(){
+  this->set_stopped(true);
+  SmallShell::getInstance().getJobsList().getStoppedJobs().insert(make_pair(_jobId,this));
+
+
+}
+void JobsList::JobEntry::contJob(){
+  this->set_stopped(false);
+  SmallShell::getInstance().getJobsList().getStoppedJobs().erase(_jobId);
+
 }
 
 /**
@@ -615,12 +626,11 @@ void JobsCommand::execute()
   int status;
   int ret;
   int pid;
-  int jobs_size=jobs->size();
   for (auto it = jobs->begin(),next_it=it; it != jobs->end(); it= next_it)
   {
     next_it++;
     pid=it->second.get_pid();
-    DO_SYS(waitpid(it->second.get_pid(),&status,WNOHANG),ret);
+    DO_SYS(waitpid(pid,&status,WNOHANG),ret);
   
     if(ret){
       SmallShell::getInstance().getJobsList().removeJobById(it->first);
@@ -657,6 +667,12 @@ void KillCommand::execute()
 
     int ret;
     DO_SYS(kill(target->get_pid(),signum),ret);
+    if (signum == SIGSTOP || signum == SIGTSTP ){
+      target->stopJob();
+    }
+    if (signum == SIGCONT){
+      target->contJob();
+    }
 
     std::cout << "signal number " << signum << " was sent to pid " << target->get_pid() << std::endl;
   }
@@ -672,6 +688,7 @@ void KillCommand::execute()
 void ForegroundCommand::execute()
 {
   int junk;
+  int status;
   JobsList *jobsList = &SmallShell::getInstance().getJobsList();
   std::map<int, JobsList::JobEntry> *jobs = &jobsList->getJobs();
   if (_args_num == 1)
@@ -686,8 +703,10 @@ void ForegroundCommand::execute()
       std::cout << last->second << std::endl;
       DO_SYS(kill(last->second.get_pid(), SIGCONT),junk);
       SmallShell::getInstance().getJobsList().setFgJob(&last->second);
-      waitpid(last->second.get_pid(), nullptr, 0);
-      jobsList->removeJobById(last->second.getId());
+      waitpid(last->second.get_pid(), &status, WUNTRACED);
+      if (!WIFSTOPPED(status)){
+        jobsList->removeJobById(last->second.getId());
+      }
       SmallShell::getInstance().getJobsList().setFgJob(nullptr);
     }
     return;
@@ -703,8 +722,12 @@ void ForegroundCommand::execute()
     {
       std::cout << found_job->second << std::endl;
       DO_SYS(kill(found_job->second.get_pid(), SIGCONT),junk);
-      waitpid(found_job->second.get_pid(), nullptr, 0);
-      jobsList->removeJobById(found_job->second.getId());
+      SmallShell::getInstance().getJobsList().setFgJob(&found_job->second);
+      waitpid(found_job->second.get_pid(), &status, WUNTRACED);
+      if (!WIFSTOPPED(status)){
+        jobsList->removeJobById(found_job->second.getId());
+      }
+      SmallShell::getInstance().getJobsList().setFgJob(nullptr);
     }
   }
   else
@@ -755,9 +778,9 @@ void BackgroundCommand::execute()
       }
     }
 
-    std::cout << target;
+    std::cout << *target;
     DO_SYS(kill(target->get_pid(), SIGCONT),junk);
-    JobsList->removeJobById(target->getId());
+    target->contJob();
   }
   catch (const std::invalid_argument &)
   {
@@ -780,6 +803,7 @@ void QuitCommand::execute()
 //ExternalCommand
 void ExternalCommand::execute(){
   int junk;
+  int status;
   string cmd_s = _trim(string(_original_cmd));
   char *cmd = &cmd_s[0];
   pid_t id;
@@ -796,14 +820,16 @@ void ExternalCommand::execute(){
     SmallShell::getInstance().getJobsList().getLastJob(&jobid);
     JobsList::JobEntry job = JobsList::JobEntry(jobid+1,id,cmd_s);
 
-    SmallShell::getInstance().getJobsList().getJobs().insert(std::pair<int,JobsList::JobEntry>(jobid+1,job));
+    auto entered_job = SmallShell::getInstance().getJobsList().getJobs().insert(std::pair<int,JobsList::JobEntry>(jobid+1,job));
     //if last character is not &
     if (strcmp(cmd_s.substr(cmd_s.length() - 1, 1).c_str(), "&") != 0)
     {
       //run in foreground
-      SmallShell::getInstance().getJobsList().setFgJob(&job);
-      DO_SYS(waitpid(id, nullptr, 0),junk);
-      SmallShell::getInstance().getJobsList().getJobs().erase(jobid+1);
+      SmallShell::getInstance().getJobsList().setFgJob(&entered_job.first->second);
+      DO_SYS(waitpid(id, &status, WUNTRACED),junk);
+      if (!WIFSTOPPED(status)){
+        SmallShell::getInstance().getJobsList().getJobs().erase(jobid+1);
+      }
       SmallShell::getInstance().getJobsList().setFgJob(nullptr);
 
     }
@@ -891,6 +917,7 @@ void print_file(int fd){
     int junk=0;
     DO_SYS(write(1,buff,size_of_file),junk);
   }
+  free(buff);
 }
 void CatCommand::execute(){
   if (_args_num == 1){
