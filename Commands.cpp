@@ -326,19 +326,31 @@ void handleRegular(const char *cmd_line){
 }
 
 void handleRedirection(string& cmd, int delimeter){
-  //const char * first = cmd.substr(0,delimeter).c_str();
-  Command *cmd1 = SmallShell::getInstance().CreateCommand(_trim(cmd.substr(0,delimeter)).c_str());
- // const char * second = _trim(cmd.substr(delimeter+1,cmd.string::npos)).c_str();
-  RedirectionCommand new_re = RedirectionCommand(cmd1,_trim(cmd.substr(delimeter+1,cmd.string::npos)).c_str(),false);
+  /*
+  const char* first = (const char*)malloc(cmd.size()*sizeof(char));
+  const char* second = (const char*)malloc(cmd.size()*sizeof(char));
+  */
+  string first_string = cmd.substr(0,delimeter);
+  first_string= _trim(first_string);
+  string second_string = cmd.substr(delimeter+1, cmd.string::npos);
+  second_string = _trim(second_string);
+  //Command *cmd1 = SmallShell::getInstance().CreateCommand(_trim(cmd.substr(0,delimeter)).c_str());
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(first_string.c_str());
+  //RedirectionCommand new_re = RedirectionCommand(cmd1,_trim(cmd.substr(delimeter+1,cmd.string::npos)).c_str(),false);
+  RedirectionCommand new_re = RedirectionCommand(cmd1,second_string.c_str(),false);
   new_re.execute();
   delete(cmd1);
 }
 
 void handleRedirectionAppend(string& cmd, int delimeter){
+  string first_string = cmd.substr(0,delimeter);
+  first_string= _trim(first_string);
+  string second_string = cmd.substr(delimeter+2, cmd.string::npos);
+  second_string = _trim(second_string);
   //const char * first = cmd.substr(0,delimeter).c_str();
-  Command *cmd1 = SmallShell::getInstance().CreateCommand(cmd.substr(0,delimeter).c_str());
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(first_string.c_str());
   //const char * second = _trim(cmd.substr(delimeter+2,cmd.string::npos)).c_str();
-  RedirectionCommand new_re = RedirectionCommand(cmd1,_trim(cmd.substr(delimeter+2,cmd.string::npos)).c_str(),true);
+  RedirectionCommand new_re = RedirectionCommand(cmd1,second_string.c_str(),true);
   new_re.execute();
   delete(cmd1);
 }
