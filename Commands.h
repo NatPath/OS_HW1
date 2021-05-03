@@ -20,7 +20,8 @@ int _args_num;
  // command(const char* cmd_line,std::streambuf* output = std::cout.rdbuf() );
   Command(){};
   Command(const char* cmd_line);
-  virtual ~Command();
+  virtual ~Command(){
+  }
   virtual void execute() = 0;
   const char* getOriginalCommand();
   void executeWrapper();

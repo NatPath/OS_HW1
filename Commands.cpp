@@ -125,7 +125,7 @@ void _removeBackgroundSign(char *cmd_line)
 }
 
 //enum of the 5 types of commands, 4 specials and 1 regular.
-typedef enum e_special_cmd {PIPERR_CMD,PIPE_CMD,REDIRECT_CMD,REDIRECT_APPEND_CMD,REGULAR_CMD} SpecialCmd;
+typedef enum e_special_cmd {PIPERR_CMD,PIPE_CMD,REDIRECT_CMD,REDIRECT_APPEND_CMD,REGULAR_CMD,TIMEOUT_CMD} SpecialCmd;
 
 /**
  * isSpecialCmd (string cmd , int* pos):
@@ -355,6 +355,10 @@ void handleRedirectionAppend(string& cmd, int delimeter){
   delete(cmd1);
 }
 
+void handleTimeOut(const char* cmd){
+  return;
+}
+
 
 void SmallShell::executeCommand(const char *cmd_line)
 {
@@ -388,6 +392,9 @@ void SmallShell::executeCommand(const char *cmd_line)
       break;
     case REGULAR_CMD: 
       handleRegular(cmd_line);
+      break;
+    case TIMEOUT_CMD:
+      handleTimeOut(cmd_line);
       break;
   }
 
