@@ -12,18 +12,18 @@
 class Command {
 // TODO: Add your data members
 protected:
-const char* _original_cmd;
+std::string _original_cmd;
 std::vector<std::string> _args;
 int _args_num;
 
  public:
  // command(const char* cmd_line,std::streambuf* output = std::cout.rdbuf() );
   Command(){};
-  Command(const char* cmd_line);
+  Command(std::string& cmd_line);
   virtual ~Command(){
   }
   virtual void execute() = 0;
-  const char* getOriginalCommand();
+  std::string getOriginalCommand();
   void executeWrapper();
   //virtual void prepare();
   //virtual void cleanup();
@@ -32,13 +32,13 @@ int _args_num;
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line):Command(cmd_line){};
+  BuiltInCommand(std::string& cmd_line):Command(cmd_line){};
   virtual ~BuiltInCommand() {}
 };
 
 class ExternalCommand : public Command {
  public:
-  ExternalCommand(const char* cmd_line):Command(cmd_line){};
+  ExternalCommand(std::string& cmd_line):Command(cmd_line){};
   virtual ~ExternalCommand() {}
   void execute() override;
 };
@@ -71,35 +71,35 @@ class RedirectionCommand : public Command {
 
 class ChangePromptCommand : public BuiltInCommand {  
   public:
-  ChangePromptCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
+  ChangePromptCommand(std::string& cmd_line):BuiltInCommand(cmd_line){}
   virtual ~ChangePromptCommand() {}
   void execute() override;
 };
 
 class ShowPIDCommand : public BuiltInCommand {  
   public:
-  ShowPIDCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
+  ShowPIDCommand(std::string& cmd_line):BuiltInCommand(cmd_line){}
   virtual ~ShowPIDCommand() {}
   void execute() override;
 };
 
 class PwdCommand : public BuiltInCommand {  
   public:
-  PwdCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
+  PwdCommand(std::string& cmd_line):BuiltInCommand(cmd_line){}
   virtual ~PwdCommand() {}
   void execute() override;
 };
 
 class CdCommand : public BuiltInCommand {  
   public:
-  CdCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
+  CdCommand(std::string& cmd_line):BuiltInCommand(cmd_line){}
   virtual ~CdCommand() {}
   void execute() override;
 };
 
 class JobsCommand : public BuiltInCommand {  
   public:
-  JobsCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
+  JobsCommand(std::string& cmd_line):BuiltInCommand(cmd_line){}
   virtual ~JobsCommand() {}
   void execute() override;
 };
@@ -125,7 +125,7 @@ class GetCurrDirCommand : public BuiltInCommand {
 class QuitCommand : public BuiltInCommand {
 // TODO: Add your data members public:
   public:
-  QuitCommand(const char* cmd_line) : BuiltInCommand(cmd_line){};
+  QuitCommand(std::string& cmd_line) : BuiltInCommand(cmd_line){};
   virtual ~QuitCommand() {}
   void execute() override;
 };
@@ -144,7 +144,7 @@ class JobsList {
    bool _stopped;
 
    public:
-   JobEntry(int id,pid_t pid,std::string command);
+   JobEntry(int id,pid_t pid,std::string& command);
    int getId();
    void setId(int id);
    pid_t get_pid() const;
@@ -165,7 +165,7 @@ class JobsList {
   JobsList() = default;
   ~JobsList(){}
   //void addJob(Command* cmd, bool isStopped = false);
-  void addJob(const char * cmd_line,pid_t pid, bool isStopped = false);
+  void addJob(std::string& cmd_line,pid_t pid, bool isStopped = false);
   void printJobsList();
   void killAllJobs();
   void removeFinishedJobs();
@@ -185,7 +185,7 @@ class JobsList {
 
 class KillCommand : public BuiltInCommand {  
   public:
-  KillCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
+  KillCommand(std::string& cmd_line):BuiltInCommand(cmd_line){}
   virtual ~KillCommand() {}
   void execute() override;
 };
@@ -194,7 +194,7 @@ class ForegroundCommand : public BuiltInCommand {
  // TODO: Add your data members
  public:
   //ForegroundCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line);
-  ForegroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line){};
+  ForegroundCommand(std::string& cmd_line) : BuiltInCommand(cmd_line){};
   virtual ~ForegroundCommand() {}
   void execute() override;
 };
@@ -202,14 +202,14 @@ class ForegroundCommand : public BuiltInCommand {
 class BackgroundCommand : public BuiltInCommand {
  // TODO: Add your data members
  public:
-  BackgroundCommand(const char* cmd_line):BuiltInCommand(cmd_line){};
+  BackgroundCommand(std::string& cmd_line):BuiltInCommand(cmd_line){};
   virtual ~BackgroundCommand() {}
   void execute() override;
 };
 
 class CatCommand : public BuiltInCommand {
  public:
-  CatCommand(const char* cmd_line):BuiltInCommand(cmd_line){};
+  CatCommand(std::string& cmd_line):BuiltInCommand(cmd_line){};
   virtual ~CatCommand() {}
   void execute() override;
 };
@@ -224,7 +224,7 @@ class SmallShell {
   JobsList::JobEntry* _fg_job;
   SmallShell();
  public:
-  Command *CreateCommand(const char* cmd_line);
+  Command *CreateCommand(std::string& cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
   void operator=(SmallShell const&)  = delete; // disable = operator
   static SmallShell& getInstance() // make SmallShell singleton
@@ -234,12 +234,12 @@ class SmallShell {
     return instance;
   }
   ~SmallShell();
-  void executeCommand(const char* cmd_line);
+  void executeCommand(std::string& cmd_line);
   // TODO: add extra methods as needed
   std::string getPromptName();
   void setPromptName(std::string new_name);
   std::string getLastWorkingDir();
-  void setLastWorkingDir(std::string new_dir);
+  void setLastWorkingDir(std::string& new_dir);
   JobsList& getJobsList();
   JobsList::JobEntry* getFgJob();
   void killFg();

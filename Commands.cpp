@@ -33,6 +33,7 @@ using namespace std;
   RET_VALUE = SYSCALL ;\
   if ( RET_VALUE ==-1){\
     perror_wrap(#SYSCALL);\
+    return;\
   }\
 } while (0)\
 
@@ -43,10 +44,9 @@ using namespace std;
  * Does the perror with the required formating. in the example  "smash error: wait failed"
  * */
 void perror_wrap(const char* func_errored){
-  std::string func_string = func_errored;  
-  std::string error_string = "smash error: " + func_string.substr(0,func_string.find('(')) + " failed";
+  string func_string = func_errored;
+  string error_string= "smash error: " + func_string.substr(0,func_string.find('(')) + " failed";
   perror(error_string.c_str());
-  
 }
 
 string _ltrim(const std::string &s)
@@ -82,6 +82,8 @@ int _parseCommandLine(const char* cmd_line, char** args) {
   FUNC_EXIT()
 }
 */
+
+/*
 int _parseCommandLine(const char *cmd_line, vector<string> &args)
 {
   FUNC_ENTRY()
@@ -96,18 +98,31 @@ int _parseCommandLine(const char *cmd_line, vector<string> &args)
 
   FUNC_EXIT()
 }
-
-bool _isBackgroundCommand(const char *cmd_line)
+*/
+int _parseCommandLine(string& cmd_line, vector<string> &args)
 {
-  const string str(cmd_line);
-  return str[str.find_last_not_of(WHITESPACE)] == '&';
+  FUNC_ENTRY()
+  int i = 0;
+  std::istringstream iss(_trim(cmd_line).c_str());
+  for (std::string s; iss >> s;)
+  {
+    args[i] = s;
+    args[++i] = "\0";
+  }
+  return i;
+
+  FUNC_EXIT()
+}
+bool _isBackgroundCommand(std::string& cmd_line)
+{
+  
+  return cmd_line[cmd_line.find_last_not_of(WHITESPACE)] == '&';
 }
 
-void _removeBackgroundSign(char *cmd_line)
+void _removeBackgroundSign(std::string& cmd_line)
 {
-  const string str(cmd_line);
   // find last character other than spaces
-  unsigned int idx = str.find_last_not_of(WHITESPACE);
+  unsigned int idx = cmd_line.find_last_not_of(WHITESPACE);
   // if all characters are spaces then return
   if (idx == string::npos)
   {
@@ -121,7 +136,7 @@ void _removeBackgroundSign(char *cmd_line)
   // replace the & (background sign) with space and then remove all tailing spaces.
   cmd_line[idx] = ' ';
   // truncate the command line string up to the last non-space character
-  cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
+  cmd_line[cmd_line.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
 //enum of the 5 types of commands, 4 specials and 1 regular.
@@ -133,7 +148,7 @@ typedef enum e_special_cmd {PIPERR_CMD,PIPE_CMD,REDIRECT_CMD,REDIRECT_APPEND_CMD
  * also puts the position of the "delimiter" in *pos.
  * 
  * */
-SpecialCmd isSpecialCmd(string cmd,int* pos){
+SpecialCmd isSpecialCmd(string& cmd,int* pos){
   if (cmd.find("|&")!=string::npos){
     *pos = cmd.find("|&");
     return PIPERR_CMD;
@@ -189,14 +204,14 @@ void SmallShell::stopFg(){
   }
 }
 
-const char* Command::getOriginalCommand(){
+string Command::getOriginalCommand(){
   return _original_cmd;
 }
 
 /**
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
-Command *SmallShell::CreateCommand(const char *cmd_line)
+Command *SmallShell::CreateCommand(std::string& cmd_line)
 {
   // For example:
   /*
@@ -225,55 +240,57 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
 1) builtin commands should ignore &
 
 */
-  string cmd_s = _trim(string(cmd_line));
+  string cmd_s = _trim(cmd_line);
 
 
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
-  char *cmd = &cmd_s[0];
+ // char *cmd = cmd_s.c_str();
+
+ // char *cmd = &cmd_s[0];
   if (cmd_s==""){
     return nullptr;
   }
-  _removeBackgroundSign(cmd);
+  _removeBackgroundSign(cmd_s);
   if (firstWord.compare("chprompt") == 0)
   {
-    return new ChangePromptCommand(cmd);
+    return new ChangePromptCommand(cmd_s);
   }
   if (firstWord.compare("showpid") == 0)
   {
-    return new ShowPIDCommand(cmd);
+    return new ShowPIDCommand(cmd_s);
   }
   if (firstWord.compare("pwd") == 0)
   {
-    return new PwdCommand(cmd);
+    return new PwdCommand(cmd_s);
   }
   if (firstWord.compare("cd") == 0)
   {
-    return new CdCommand(cmd);
+    return new CdCommand(cmd_s);
   }
   if (firstWord.compare("jobs") == 0)
   {
-    return new JobsCommand(cmd);
+    return new JobsCommand(cmd_s);
   }
   if (firstWord.compare("kill") == 0)
   {
-    return new KillCommand(cmd);
+    return new KillCommand(cmd_s);
   }
   if (firstWord.compare("fg") == 0)
   {
-    return new ForegroundCommand(cmd);
+    return new ForegroundCommand(cmd_s);
   }
   if (firstWord.compare("bg") == 0)
   {
-    return new BackgroundCommand(cmd);
+    return new BackgroundCommand(cmd_s);
   }
   if (firstWord.compare("quit") == 0)
   {
-    return new QuitCommand(cmd);
+    return new QuitCommand(cmd_s);
   }
   if (firstWord.compare("cat") == 0)
   {
-    return new CatCommand(cmd);
+    return new CatCommand(cmd_s);
   }
 
   return new ExternalCommand(cmd_line);
@@ -287,22 +304,35 @@ Command *SmallShell::CreateCommand(const char *cmd_line)
 }
 
 
-void handlePipe(string cmd, int delimeter){
-  const char * first = cmd.substr(0,delimeter).c_str();
-  Command *cmd1 = SmallShell::getInstance().CreateCommand(first);
-  const char * second = cmd.substr(delimeter+1,cmd.length()-1).c_str();
-  Command *cmd2 = SmallShell::getInstance().CreateCommand(second);
+void handlePipe(string& cmd, int delimeter){
+  string first_string = cmd.substr(0,delimeter);
+  //first_string= _trim(first_string);
+  //const char* first = first_string.c_str();
+ // char * first =(char*) malloc(first_string.length()+1);
+ // memcpy(first,first_string.c_str(),first_string.length());
+  //first[first_string.length()] = '\0';
+  string second_string = cmd.substr(delimeter+1, cmd.string::npos);
+ // second_string = _trim(second_string);
+//  const char* second = second_string.c_str();
+  
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(first_string);
+
+  Command *cmd2 = SmallShell::getInstance().CreateCommand(second_string);
 
   PipeCommand new_pipe = PipeCommand(cmd1,cmd2,false);
   new_pipe.execute();
-
 }
 
-void handlePiperr(string cmd, int delimeter){
+void handlePiperr(string& cmd, int delimeter){
+  string first_string = cmd.substr(0,delimeter);
+//  first_string= _trim(first_string);
+  string second_string = cmd.substr(delimeter+2, cmd.string::npos);
+ // second_string = _trim(second_string);
+
  // const char * first = cmd.substr(0,delimeter).c_str();
-  Command *cmd1 = SmallShell::getInstance().CreateCommand(cmd.substr(0,delimeter).c_str());
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(first_string);
   //const char * second = cmd.substr(delimeter+2,cmd.length()-1).c_str();
-  Command *cmd2 = SmallShell::getInstance().CreateCommand(cmd.substr(delimeter+2,cmd.length()-1).c_str());
+  Command *cmd2 = SmallShell::getInstance().CreateCommand(second_string);
 
   PipeCommand new_pipe = PipeCommand(cmd1,cmd2,true);
   new_pipe.execute();
@@ -313,7 +343,7 @@ void handlePiperr(string cmd, int delimeter){
 }
 
 
-void handleRegular(const char *cmd_line){
+void handleRegular(string& cmd_line){
    Command *new_command = SmallShell::getInstance().CreateCommand(cmd_line);
 
   if (new_command == nullptr)
@@ -331,11 +361,11 @@ void handleRedirection(string& cmd, int delimeter){
   const char* second = (const char*)malloc(cmd.size()*sizeof(char));
   */
   string first_string = cmd.substr(0,delimeter);
-  first_string= _trim(first_string);
+ // first_string= _trim(first_string);
   string second_string = cmd.substr(delimeter+1, cmd.string::npos);
-  second_string = _trim(second_string);
+ // second_string = _trim(second_string);
   //Command *cmd1 = SmallShell::getInstance().CreateCommand(_trim(cmd.substr(0,delimeter)).c_str());
-  Command *cmd1 = SmallShell::getInstance().CreateCommand(first_string.c_str());
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(first_string);
   //RedirectionCommand new_re = RedirectionCommand(cmd1,_trim(cmd.substr(delimeter+1,cmd.string::npos)).c_str(),false);
   RedirectionCommand new_re = RedirectionCommand(cmd1,second_string.c_str(),false);
   new_re.execute();
@@ -344,23 +374,23 @@ void handleRedirection(string& cmd, int delimeter){
 
 void handleRedirectionAppend(string& cmd, int delimeter){
   string first_string = cmd.substr(0,delimeter);
-  first_string= _trim(first_string);
+  //first_string= _trim(first_string);
   string second_string = cmd.substr(delimeter+2, cmd.string::npos);
-  second_string = _trim(second_string);
+ // second_string = _trim(second_string);
   //const char * first = cmd.substr(0,delimeter).c_str();
-  Command *cmd1 = SmallShell::getInstance().CreateCommand(first_string.c_str());
+  Command *cmd1 = SmallShell::getInstance().CreateCommand(first_string);
   //const char * second = _trim(cmd.substr(delimeter+2,cmd.string::npos)).c_str();
   RedirectionCommand new_re = RedirectionCommand(cmd1,second_string.c_str(),true);
   new_re.execute();
   delete(cmd1);
 }
 
-void handleTimeOut(const char* cmd){
+void handleTimeOut(string& cmd){
   return;
 }
 
 
-void SmallShell::executeCommand(const char *cmd_line)
+void SmallShell::executeCommand(string& cmd_line)
 {
   // TODO: Add your implementation here
   // for example:
@@ -368,7 +398,7 @@ void SmallShell::executeCommand(const char *cmd_line)
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 
-  string cmd_s = _trim(string(cmd_line));
+  string cmd_s = _trim(cmd_line);
 // recognize type of command
   int pos;
   SpecialCmd cmd_type = isSpecialCmd(cmd_s,&pos);
@@ -424,7 +454,7 @@ JobsList &SmallShell::getJobsList()
   return _jobsList;
 }
 
-void SmallShell::setLastWorkingDir(string new_dir)
+void SmallShell::setLastWorkingDir(string& new_dir)
 {
   _last_working_dir = new_dir;
 }
@@ -523,7 +553,7 @@ JobsList::JobEntry *JobsList::getLastJob(int *lastJobId)
   }
 }
 
-JobsList::JobEntry::JobEntry(int id,pid_t pid, std::string command)
+JobsList::JobEntry::JobEntry(int id,pid_t pid, std::string& command)
 {
   _timeMade = time(nullptr);
   _jobId = id;
@@ -566,7 +596,7 @@ void JobsList::JobEntry::die()
 }
 
 //General Command Zone
-Command::Command(const char *cmd_line)
+Command::Command(string& cmd_line)
 {
   _args = vector<string>(COMMAND_MAX_ARGS);
   _args_num = _parseCommandLine(cmd_line, _args);
@@ -637,8 +667,9 @@ void CdCommand::execute()
     free(buff);
     return;
   }
+  string string_buff = string(buff);
 
-  SmallShell::getInstance().setLastWorkingDir(buff);
+  SmallShell::getInstance().setLastWorkingDir(string_buff);
   free(buff);
 }
 
@@ -827,15 +858,15 @@ void QuitCommand::execute()
 void ExternalCommand::execute(){
   int junk;
   int status;
-  string cmd_s = _trim(string(_original_cmd));
-  char *cmd = &cmd_s[0];
+  string cmd_s = _trim(_original_cmd);
+  //char *cmd = &cmd_s[0];
   pid_t id;
   DO_SYS(fork(),id);
   if (id == 0)
   {
     setpgrp();
-    _removeBackgroundSign(cmd);
-    execl("/bin/bash", "bash","-c",cmd, nullptr);
+    _removeBackgroundSign(cmd_s);
+    execl("/bin/bash", "bash","-c",cmd_s.c_str(), nullptr);
   }
   else
   {
@@ -850,6 +881,13 @@ void ExternalCommand::execute(){
       //run in foreground
       SmallShell::getInstance().getJobsList().setFgJob(&entered_job.first->second);
       DO_SYS(waitpid(id, &status, WUNTRACED),junk);
+      /*
+      std::cout<<"WIFEXITED of proccess which finished waiting: " << WIFEXITED(status)<<std::endl;
+      std::cout<<"WIFSIGNALED of proccess which finished waiting: " << WIFSIGNALED(status)<<std::endl;
+      std::cout<<"WIFSTOPPED of proccess which finished waiting: " << WIFSTOPPED(status)<<std::endl;
+      std::cout<<"WSTOPSIG of proccess which finished waiting: " << WSTOPSIG(status)<<std::endl;
+      */
+
       if (!WIFSTOPPED(status)){
         SmallShell::getInstance().getJobsList().getJobs().erase(jobid+1);
       }
@@ -907,7 +945,7 @@ void PipeCommand::execute(){
 }
 
 //Redirection
-RedirectionCommand::RedirectionCommand(Command* cmd,const char* file_name,bool append):Command(cmd->getOriginalCommand()){
+RedirectionCommand::RedirectionCommand(Command* cmd,const char* file_name,bool append):Command(){
   _cmd = cmd;
   if(append){
     DO_SYS(open(file_name,O_RDWR | O_CREAT | O_APPEND,S_IRWXU),_fd);
