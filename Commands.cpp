@@ -306,13 +306,13 @@ Command *SmallShell::CreateCommand(std::string& cmd_line)
 
 void handlePipe(string& cmd, int delimeter){
   string first_string = cmd.substr(0,delimeter);
-  //first_string= _trim(first_string);
+  first_string= _trim(first_string);
   //const char* first = first_string.c_str();
  // char * first =(char*) malloc(first_string.length()+1);
  // memcpy(first,first_string.c_str(),first_string.length());
   //first[first_string.length()] = '\0';
   string second_string = cmd.substr(delimeter+1, cmd.string::npos);
- // second_string = _trim(second_string);
+  second_string = _trim(second_string);
 //  const char* second = second_string.c_str();
   
   Command *cmd1 = SmallShell::getInstance().CreateCommand(first_string);
@@ -325,9 +325,9 @@ void handlePipe(string& cmd, int delimeter){
 
 void handlePiperr(string& cmd, int delimeter){
   string first_string = cmd.substr(0,delimeter);
-//  first_string= _trim(first_string);
+  first_string= _trim(first_string);
   string second_string = cmd.substr(delimeter+2, cmd.string::npos);
- // second_string = _trim(second_string);
+  second_string = _trim(second_string);
 
  // const char * first = cmd.substr(0,delimeter).c_str();
   Command *cmd1 = SmallShell::getInstance().CreateCommand(first_string);
@@ -361,9 +361,9 @@ void handleRedirection(string& cmd, int delimeter){
   const char* second = (const char*)malloc(cmd.size()*sizeof(char));
   */
   string first_string = cmd.substr(0,delimeter);
- // first_string= _trim(first_string);
+  first_string= _trim(first_string);
   string second_string = cmd.substr(delimeter+1, cmd.string::npos);
- // second_string = _trim(second_string);
+  second_string = _trim(second_string);
   //Command *cmd1 = SmallShell::getInstance().CreateCommand(_trim(cmd.substr(0,delimeter)).c_str());
   Command *cmd1 = SmallShell::getInstance().CreateCommand(first_string);
   //RedirectionCommand new_re = RedirectionCommand(cmd1,_trim(cmd.substr(delimeter+1,cmd.string::npos)).c_str(),false);
@@ -374,8 +374,10 @@ void handleRedirection(string& cmd, int delimeter){
 
 void handleRedirectionAppend(string& cmd, int delimeter){
   string first_string = cmd.substr(0,delimeter);
+  first_string=_trim(first_string);
   //first_string= _trim(first_string);
   string second_string = cmd.substr(delimeter+2, cmd.string::npos);
+  second_string=_trim(second_string);
  // second_string = _trim(second_string);
   //const char * first = cmd.substr(0,delimeter).c_str();
   Command *cmd1 = SmallShell::getInstance().CreateCommand(first_string);
