@@ -53,7 +53,7 @@ class PipeCommand : public Command {
  public:
  //maybe other arguments
   PipeCommand(Command* command1, Command* command2, bool err);
-  virtual ~PipeCommand() {}
+  virtual ~PipeCommand();
   void execute() override;
 };
 
@@ -63,7 +63,7 @@ class RedirectionCommand : public Command {
  Command* _cmd;
  public:
   explicit RedirectionCommand(Command* cmd,const char * file_name,bool append);
-  virtual ~RedirectionCommand() {close(_fd);}
+  virtual ~RedirectionCommand();
   void execute() override;
   //void prepare() override;
   //void cleanup() override;
@@ -246,5 +246,6 @@ class SmallShell {
   void stopFg();
   
 };
+void deleteFinishedJobs();
 
 #endif //SMASH_COMMAND_H_

@@ -23,6 +23,7 @@ int main(int argc, char* argv[]) {
         std::cout << smash.getPromptName()<<"> ";
         std::string cmd_line;
         std::getline(std::cin, cmd_line);
+        deleteFinishedJobs();
         smash.executeCommand(cmd_line);
     }
     return 0;
