@@ -187,6 +187,7 @@ SmallShell::SmallShell()
   // TODO: add your implementation
   _prompt_name = "smash";
   _jobsList = JobsList();
+  _pid=getpid();
 }
 
 SmallShell::~SmallShell()
@@ -195,26 +196,31 @@ SmallShell::~SmallShell()
 }
 
 void SmallShell::killFg(){
-  std::cout<<"smash: got ctrl-C";
+  std::cout<<"smash: got ctrl-C"<<std::endl;
   int junk;
   JobsList::JobEntry* fg = _jobsList.getFgJob();
   if(fg){
     DO_SYS_RET(kill(fg->get_pid(),SIGKILL),junk);
-    std::cout<<"smash: process "<<fg->get_pid()<<" was killed";
+    std::cout<<"smash: process "<<fg->get_pid()<<" was killed"<<std::endl;
   }
 }
 
 void SmallShell::stopFg(){
-  std::cout<<"smash: got ctrl-Z";
+  std::cout<<"smash: got ctrl-Z"<<std::endl;
   int junk;
   JobsList::JobEntry* fg = _jobsList.getFgJob();
    if(fg){
     SmallShell::getInstance().getJobsList().getStoppedJobs().insert(std::pair<int,JobsList::JobEntry*>(fg->getId(),fg));
     DO_SYS_RET(kill(fg->get_pid(),SIGSTOP),junk);
     fg->stopJob();
-    std::cout<<"smash: process "<<fg->get_pid()<<" was stopped";
+    std::cout<<"smash: process "<<fg->get_pid()<<" was stopped"<<std::endl;
   }
 }
+pid_t SmallShell::getPid(){
+  return _pid;
+} 
+
+// Command Zone
 
 string Command::getOriginalCommand(){
   return _original_cmd;
@@ -626,7 +632,8 @@ void ChangePromptCommand::execute()
 // showpid
 void ShowPIDCommand::execute()
 {
-  std::cout << "smash pid is " << getpid() << std::endl;
+  SmallShell& smash = SmallShell::getInstance();
+  std::cout << "smash pid is " << smash.getPid() << std::endl;
 }
 
 //pwd
@@ -864,7 +871,7 @@ void BackgroundCommand::execute()
       }
     }
 
-    std::cout << *target;
+    std::cout << *target << std::endl;
     DO_SYS_RET(kill(target->get_pid(), SIGCONT),junk);
     target->contJob();
   }
@@ -1001,6 +1008,10 @@ RedirectionCommand::~RedirectionCommand(){
 
 void RedirectionCommand::execute(){
   // fd will have to be created somewhere in this class, and will be set to write or append.
+  //this means the sys_open failed.
+  if (_fd==-1){
+    return;
+  }
   int oldOut;
   int junk;
   DO_SYS_RET(dup(1),oldOut);
@@ -1017,17 +1028,18 @@ void print_file(int fd){
   lseek(fd,0,SEEK_SET);
   char *buff=(char*)malloc(size_of_file*sizeof(char));
   if (read(fd,buff,size_of_file)==-1){
-    std::cerr<<"smash error: read failed";
+    perror("smash error: read failed");
   }
   else{
-    int junk=0;
-    DO_SYS_RET(write(1,buff,size_of_file),junk);
+    if (write(1,buff,size_of_file)==-1){
+      perror("smash error: write failed");
+    }
   }
   free(buff);
 }
 void CatCommand::execute(){
   if (_args_num == 1){
-    std::cerr<<"smash error: cat: not enough arguments";
+    std::cerr<<"smash error: cat: not enough arguments"<<std::endl;
   }
   auto itt= _args.begin();
   itt++;

@@ -218,6 +218,7 @@ class CatCommand : public BuiltInCommand {
 class SmallShell {
  private:
   // TODO: Add your data members
+  pid_t _pid;
   std::string _prompt_name ;
   std::string _last_working_dir;
   JobsList _jobsList;
@@ -242,6 +243,7 @@ class SmallShell {
   void setLastWorkingDir(std::string& new_dir);
   JobsList& getJobsList();
   JobsList::JobEntry* getFgJob();
+  pid_t getPid();
   void killFg();
   void stopFg();
   
