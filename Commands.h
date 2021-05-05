@@ -169,6 +169,7 @@ class JobsList {
    void die();
    void proceedJob();
    time_t getTimeMade();
+   time_t getTimeMade() const;
    std::string getCommand();
    friend std::ostream& operator<<(std::ostream& os,const JobEntry& job);
   };
@@ -179,6 +180,7 @@ class JobsList {
     TimedJob(int id,pid_t pid,std::string& command, int alarm_time):JobEntry(id, pid,command){_alarm_time = alarm_time;};
     TimedJob(JobEntry* base, int alarm_time);
     int getAlarmTime();
+    int getAlarmTime() const;
   };
  // TODO: Add your data members
  private:

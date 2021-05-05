@@ -228,11 +228,17 @@ string Command::getOriginalCommand(){
 }
 
 TimeOutCommand* handleTimeOut(string& cmd){
-   string cmd_t = _ltrim(cmd);
+   string cmd_t = _trim(cmd);
+   if (cmd_t == "timeout"){
+     return nullptr;
+   }
    int firstSpace = cmd_t.find(" ");
    int secondSpace = cmd_t.find(" ",firstSpace+1); 
    int time = stoi(cmd_t.substr(firstSpace+1,secondSpace-firstSpace-1)); // guaranteed to work by TAs
    string to_execute = cmd.substr(cmd.find(cmd_t.substr(secondSpace+1)));
+   if (to_execute.length()==0){
+     return nullptr;
+   }
    return new TimeOutCommand(cmd,to_execute,time);
 }
 
@@ -316,6 +322,7 @@ Command *SmallShell::CreateCommand(std::string& cmd_line)
     return new CatCommand(cmd_s);
   }
   if(firstWord.compare("timeout") == 0){
+
     return handleTimeOut(cmd_line);
   }
 
@@ -635,9 +642,15 @@ void JobsList::JobEntry::contJob(){
 time_t JobsList::JobEntry::getTimeMade(){
   return _timeMade;
 }
+time_t JobsList::JobEntry::getTimeMade() const{
+  return _timeMade;
+}
 
 //timedJob
 int JobsList::TimedJob::getAlarmTime(){
+  return _alarm_time;
+}
+int JobsList::TimedJob::getAlarmTime() const{
   return _alarm_time;
 }
 
