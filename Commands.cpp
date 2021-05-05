@@ -152,7 +152,7 @@ void _removeBackgroundSign(std::string& cmd_line)
 }
 
 //enum of the 5 types of commands, 4 specials and 1 regular.
-typedef enum e_special_cmd {PIPERR_CMD,PIPE_CMD,REDIRECT_CMD,REDIRECT_APPEND_CMD,REGULAR_CMD,TIMEOUT_CMD} SpecialCmd;
+typedef enum e_special_cmd {PIPERR_CMD,PIPE_CMD,REDIRECT_CMD,REDIRECT_APPEND_CMD,REGULAR_CMD} SpecialCmd;
 
 /**
  * isSpecialCmd (string cmd , int* pos):
@@ -190,6 +190,7 @@ SmallShell::SmallShell()
   _pid=getpid();
 }
 
+
 SmallShell::~SmallShell()
 {
   // TODO: add your implementation
@@ -224,6 +225,15 @@ pid_t SmallShell::getPid(){
 
 string Command::getOriginalCommand(){
   return _original_cmd;
+}
+
+TimeOutCommand* handleTimeOut(string& cmd){
+   string cmd_t = _ltrim(cmd);
+   int firstSpace = cmd_t.find(" ");
+   int secondSpace = cmd_t.find(" ",firstSpace+1); 
+   int time = stoi(cmd_t.substr(firstSpace+1,secondSpace-firstSpace-1)); // guaranteed to work by TAs
+   string to_execute = cmd.substr(cmd.find(cmd_t.substr(secondSpace+1)));
+   return new TimeOutCommand(cmd,to_execute,time);
 }
 
 /**
@@ -304,6 +314,9 @@ Command *SmallShell::CreateCommand(std::string& cmd_line)
   if (firstWord.compare("cat") == 0)
   {
     return new CatCommand(cmd_s);
+  }
+  if(firstWord.compare("timeout") == 0){
+    return handleTimeOut(cmd_line);
   }
 
   return new ExternalCommand(cmd_line);
@@ -394,9 +407,12 @@ void handleRedirectionAppend(string& cmd, int delimeter){
   new_re.execute();
 }
 
-void handleTimeOut(string& cmd){
-  return;
+
+
+bool TimeCompare::operator()(JobsList::TimedJob& big, JobsList::TimedJob& small){
+  return (big.getAlarmTime()-difftime(time(nullptr), big.getTimeMade())) > (small.getAlarmTime()-difftime(time(nullptr), small.getTimeMade()));
 }
+
 
 
 void SmallShell::executeCommand(string& cmd_line)
@@ -435,9 +451,7 @@ void SmallShell::executeCommand(string& cmd_line)
     case REGULAR_CMD: 
       handleRegular(cmd_line);
       break;
-    case TIMEOUT_CMD:
-      handleTimeOut(cmd_line);
-      break;
+    
   }
 
  
@@ -448,6 +462,10 @@ string SmallShell::getPromptName()
   return _prompt_name;
 }
 
+
+std::priority_queue<JobsList::TimedJob,std::vector<JobsList::TimedJob>,TimeCompare>& SmallShell::getTimedJobs(){
+  return _timedJobs;
+}
 JobsList::JobEntry* SmallShell::getFgJob(){
   return _fg_job;
 }
@@ -522,11 +540,81 @@ void JobsList::setFgJob(JobsList::JobEntry* fg_job){
 }
 
 
+//TimeOut
+TimeOutCommand::TimeOutCommand(std::string & cmd, std::string& to_execute,int time):Command(cmd){
+  _to_execute = to_execute;
+  _time = time;
+}
+
+void TimeOutCommand::execute(){
+
+  int junk;
+  int status;
+  string cmd_s = _trim(_to_execute);
+  //char *cmd = &cmd_s[0];
+  pid_t id;
+  DO_SYS_RET(fork(),id);
+  if (id == 0)
+  {
+    setpgrp();
+    _removeBackgroundSign(cmd_s);
+    execl("/bin/bash", "bash","-c",cmd_s.c_str(), nullptr);
+
+  }
+  else
+  {
+    // add timeout jobEntry
+    int jobid = 0;
+    SmallShell::getInstance().getJobsList().getLastJob(&jobid);
+    string orig_cmd_s = _trim(_original_cmd);
+    JobsList::JobEntry job = JobsList::JobEntry(jobid+1,id,orig_cmd_s);
+     auto entered_job = SmallShell::getInstance().getJobsList().getJobs().insert(std::pair<int,JobsList::JobEntry>(jobid+1,job));
+    // set alarm
+    int ret;
+    DO_SYS(alarm(_time),ret);
+
+    //add timed job
+    JobsList::TimedJob timed_job = JobsList::TimedJob(0,id,_to_execute,_time);
+    SmallShell::getInstance().getTimedJobs().push(timed_job);
+
+
+   
+    //if last character is not &
+    if (strcmp(cmd_s.substr(cmd_s.length() - 1, 1).c_str(), "&") != 0)
+    {
+      //run in foreground
+      SmallShell::getInstance().getJobsList().setFgJob(&entered_job.first->second);
+      DO_SYS_RET(waitpid(id, &status, WUNTRACED),junk);
+      
+      if (!WIFSTOPPED(status)){
+        SmallShell::getInstance().getJobsList().getJobs().erase(jobid+1);
+      }
+      SmallShell::getInstance().getJobsList().setFgJob(nullptr);
+
+    }
+  }
+
+}
+
+JobsList::TimedJob::TimedJob(JobsList::JobEntry* base, int alarmTime){
+  _alarm_time = alarmTime;
+  _jobId = base->getId();
+  _pid = base->get_pid();
+  _command = base->getCommand();
+  _timeMade = base->getTimeMade();
+  _stopped = false;
+}
+
+
 //jobEntry
 JobsList::JobEntry *JobsList::getJobById(int jobId)
 {
   auto found = _jobs.find(jobId);
   return (found == _jobs.end()) ? nullptr : &(found->second);
+}
+
+string JobsList::JobEntry::getCommand(){
+  return _command;
 }
 
 void JobsList::JobEntry::set_stopped(bool stopped){
@@ -542,6 +630,15 @@ void JobsList::JobEntry::contJob(){
   this->set_stopped(false);
   SmallShell::getInstance().getJobsList().getStoppedJobs().erase(_jobId);
 
+}
+
+time_t JobsList::JobEntry::getTimeMade(){
+  return _timeMade;
+}
+
+//timedJob
+int JobsList::TimedJob::getAlarmTime(){
+  return _alarm_time;
 }
 
 /**
@@ -650,6 +747,9 @@ void PwdCommand::execute()
 
 void CdCommand::execute()
 {
+  if(_args_num == 1){
+    return;
+  }
   if (_args_num > 2)
   {
     std::cerr << "smash error: cd: too many arguments" << std::endl;

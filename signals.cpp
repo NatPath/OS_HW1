@@ -22,5 +22,9 @@ void ctrlCHandler(int sig_num) {
 
 void alarmHandler(int sig_num) {
   // TODO: Add your implementation
+  JobsList::TimedJob job = SmallShell::getInstance().getTimedJobs().top();
+  SmallShell::getInstance().getTimedJobs().pop();
+  kill(job.get_pid(),SIGKILL);
+  std::cout<<"smash: "<<job.getCommand()<<" timed out!";
 }
 

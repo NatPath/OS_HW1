@@ -5,6 +5,8 @@
 #include <map>
 #include <string.h>
 #include <unistd.h>
+#include <queue>
+#include <functional>
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 
@@ -40,6 +42,16 @@ class ExternalCommand : public Command {
  public:
   ExternalCommand(std::string& cmd_line):Command(cmd_line){};
   virtual ~ExternalCommand() {}
+  void execute() override;
+};
+
+class TimeOutCommand : public Command {
+  std::string _to_execute;
+  int _time;
+
+  public:
+  TimeOutCommand(std::string& cmd, std::string& _to_execute, int time);
+  virtual ~TimeOutCommand() {}
   void execute() override;
 };
 
@@ -137,6 +149,7 @@ class JobsList {
  public:
   class JobEntry {
    // TODO: Add your data members
+   protected:
    int _jobId;
    pid_t _pid;
    time_t _timeMade;
@@ -144,6 +157,7 @@ class JobsList {
    bool _stopped;
 
    public:
+   JobEntry(){}
    JobEntry(int id,pid_t pid,std::string& command);
    int getId();
    void setId(int id);
@@ -154,7 +168,17 @@ class JobsList {
    void contJob();
    void die();
    void proceedJob();
+   time_t getTimeMade();
+   std::string getCommand();
    friend std::ostream& operator<<(std::ostream& os,const JobEntry& job);
+  };
+
+  class TimedJob: public JobEntry{
+    int _alarm_time;
+    public:
+    TimedJob(int id,pid_t pid,std::string& command, int alarm_time):JobEntry(id, pid,command){_alarm_time = alarm_time;};
+    TimedJob(JobEntry* base, int alarm_time);
+    int getAlarmTime();
   };
  // TODO: Add your data members
  private:
@@ -215,6 +239,16 @@ class CatCommand : public BuiltInCommand {
 };
 
 
+class TimeCompare{
+  public:
+  bool operator() (JobsList::TimedJob&, JobsList::TimedJob&);
+};
+
+
+
+
+
+
 class SmallShell {
  private:
   // TODO: Add your data members
@@ -223,6 +257,7 @@ class SmallShell {
   std::string _last_working_dir;
   JobsList _jobsList;
   JobsList::JobEntry* _fg_job;
+  std::priority_queue<JobsList::TimedJob,std::vector<JobsList::TimedJob>,TimeCompare> _timedJobs;
   SmallShell();
  public:
   Command *CreateCommand(std::string& cmd_line);
@@ -243,6 +278,7 @@ class SmallShell {
   void setLastWorkingDir(std::string& new_dir);
   JobsList& getJobsList();
   JobsList::JobEntry* getFgJob();
+  std::priority_queue<JobsList::TimedJob,std::vector<JobsList::TimedJob>,TimeCompare>& getTimedJobs();
   pid_t getPid();
   void killFg();
   void stopFg();
