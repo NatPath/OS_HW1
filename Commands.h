@@ -182,7 +182,7 @@ class JobsList {
     int getAlarmTime();
     int getAlarmTime() const;
     time_t getTimeLeftForTimer();
-    time_t  getTimeLeftForTimer() const;
+    time_t getTimeLeftForTimer() const;
   };
  // TODO: Add your data members
  private:
