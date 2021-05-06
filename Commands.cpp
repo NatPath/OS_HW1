@@ -553,6 +553,11 @@ TimeOutCommand::TimeOutCommand(std::string & cmd, std::string& to_execute,int ti
   _time = time;
 }
 
+/*
+void print_heap(priority_queue<JobsList::TimedJob,std::vector<JobsList::TimedJob>,TimeCompare>& queue){
+  auto queq
+}
+*/
 void TimeOutCommand::execute(){
 
   int junk;
@@ -573,16 +578,28 @@ void TimeOutCommand::execute(){
     // add timeout jobEntry
     int jobid = 0;
     SmallShell::getInstance().getJobsList().getLastJob(&jobid);
-    string orig_cmd_s = _trim(_original_cmd);
+    string orig_cmd_s = _trim(_original_cmd); // why trim this?
     JobsList::JobEntry job = JobsList::JobEntry(jobid+1,id,orig_cmd_s);
-     auto entered_job = SmallShell::getInstance().getJobsList().getJobs().insert(std::pair<int,JobsList::JobEntry>(jobid+1,job));
+    auto entered_job = SmallShell::getInstance().getJobsList().getJobs().insert(std::pair<int,JobsList::JobEntry>(jobid+1,job));
     // set alarm
     int ret;
-    DO_SYS(alarm(_time),ret);
+    /*
+    if (!SmallShell::getInstance().getTimedJobs().empty()){
+      if (_time< SmallShell::getInstance().getTimedJobs().top().getTimeLeft()){
+        DO_SYS(alarm(_time),ret);
+      }
+    }
+    else{
+      DO_SYS(alarm(_time),ret);
+    }
+    */
 
     //add timed job
-    JobsList::TimedJob timed_job = JobsList::TimedJob(0,id,_to_execute,_time);
+    JobsList::TimedJob timed_job = JobsList::TimedJob(jobid+1,id,_to_execute,_time);
     SmallShell::getInstance().getTimedJobs().push(timed_job);
+    DO_SYS_RET(alarm(SmallShell::getInstance().getTimedJobs().top().getTimeLeftForTimer()),ret);
+    //std::cout << "top timer " << SmallShell::getInstance().getTimedJobs().top().getTimeLeftForTimer() <<std::endl;
+    //std::cout << "checking getTimedJobs heap: " << SmallShell::getInstance().getTimedJobs() << std::endl();
 
 
    
@@ -603,6 +620,7 @@ void TimeOutCommand::execute(){
 
 }
 
+// TimedJob 
 JobsList::TimedJob::TimedJob(JobsList::JobEntry* base, int alarmTime){
   _alarm_time = alarmTime;
   _jobId = base->getId();
@@ -611,6 +629,13 @@ JobsList::TimedJob::TimedJob(JobsList::JobEntry* base, int alarmTime){
   _timeMade = base->getTimeMade();
   _stopped = false;
 }
+
+  time_t JobsList::TimedJob::getTimeLeftForTimer(){
+    return this->getAlarmTime()-difftime(time(nullptr),this->getTimeMade());        
+  }
+  time_t JobsList::TimedJob::getTimeLeftForTimer() const{
+    return this->getAlarmTime()-difftime(time(nullptr),this->getTimeMade());        
+  }
 
 
 //jobEntry

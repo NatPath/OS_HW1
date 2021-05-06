@@ -20,6 +20,7 @@ int main(int argc, char* argv[]) {
     //TODO: setup sig alarm handler
     struct sigaction act;
     act.sa_flags = SA_RESTART;
+    sigemptyset(&act.sa_mask);
     act.sa_handler = alarmHandler;
     if (sigaction(SIGALRM, &act, NULL) < 0) {
 		perror("smash error: failed to set alarm handler");

@@ -181,6 +181,8 @@ class JobsList {
     TimedJob(JobEntry* base, int alarm_time);
     int getAlarmTime();
     int getAlarmTime() const;
+    time_t getTimeLeftForTimer();
+    time_t  getTimeLeftForTimer() const;
   };
  // TODO: Add your data members
  private:
